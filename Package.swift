@@ -1,6 +1,6 @@
 // swift-tools-version: 5.9
 // Free Mac Screen Recorder — Swift Package
-// Targets macOS 13+ (ScreenCaptureKit baseline) on Apple Silicon.
+// Targets macOS 13+ (ScreenCaptureKit baseline). Builds natively on Apple Silicon and Intel x86_64.
 
 import PackageDescription
 

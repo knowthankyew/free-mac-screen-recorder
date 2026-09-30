@@ -12,11 +12,13 @@ BUNDLE_ID="com.freemacscreenrecorder.app"
 DIST_DIR="$ROOT/dist"
 APP_DIR="$DIST_DIR/$APP_NAME.app"
 
-echo "==> Building Swift package ($CONFIG)..."
-cd "$ROOT"
-swift build -c "$CONFIG" --arch arm64
+ARCH="${ARCH:-$(uname -m)}"
 
-BIN_PATH="$(swift build -c "$CONFIG" --arch arm64 --show-bin-path)"
+echo "==> Building Swift package ($CONFIG for $ARCH)..."
+cd "$ROOT"
+swift build -c "$CONFIG" --arch "$ARCH"
+
+BIN_PATH="$(swift build -c "$CONFIG" --arch "$ARCH" --show-bin-path)"
 BIN="$BIN_PATH/$EXEC_NAME"
 test -f "$BIN" || { echo "Binary not found at $BIN"; exit 1; }
 
