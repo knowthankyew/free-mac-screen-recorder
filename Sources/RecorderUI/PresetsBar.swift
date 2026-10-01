@@ -2,17 +2,23 @@ import SwiftUI
 
 struct PresetsBar: View {
     @ObservedObject var vm: RecordingViewModel
+    @ObservedObject private var presets: PresetsStore
     @State private var showSaveSheet = false
     @State private var newPresetName: String = ""
+
+    init(vm: RecordingViewModel) {
+        self.vm = vm
+        self._presets = ObservedObject(wrappedValue: vm.presets)
+    }
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "slider.horizontal.3").foregroundStyle(.secondary)
             Menu {
-                if vm.presets.presets.isEmpty {
+                if presets.presets.isEmpty {
                     Text("No presets saved").foregroundStyle(.secondary)
                 } else {
-                    ForEach(vm.presets.presets) { p in
+                    ForEach(presets.presets) { p in
                         Button {
                             vm.apply(p)
                         } label: {
@@ -21,9 +27,9 @@ struct PresetsBar: View {
                     }
                     Divider()
                     Menu("Delete preset…") {
-                        ForEach(vm.presets.presets) { p in
+                        ForEach(presets.presets) { p in
                             Button(role: .destructive) {
-                                vm.presets.delete(id: p.id)
+                                presets.delete(id: p.id)
                             } label: {
                                 Text(p.name)
                             }
@@ -35,9 +41,10 @@ struct PresetsBar: View {
             }
             .menuStyle(.borderlessButton)
             .frame(maxWidth: 100)
+            .id(presets.presets)
 
             Button("Save current…") {
-                newPresetName = "Preset \(vm.presets.presets.count + 1)"
+                newPresetName = "Preset \(presets.presets.count + 1)"
                 showSaveSheet = true
             }
             Spacer()

@@ -66,6 +66,7 @@ public final class RecordingViewModel: ObservableObject {
     public let hotkeys: GlobalHotkeyController
     private let session: CaptureSession
     private var settingsCancellable: AnyCancellable?
+    private var presetsCancellable: AnyCancellable?
 
     @Published public var webcamEnabled: Bool = false
     @Published public var selectedWebcamDeviceID: String?
@@ -113,6 +114,12 @@ public final class RecordingViewModel: ObservableObject {
             .sink { [weak self] url in
                 self?.outputFolder = url
                 self?.library.relocate(to: url)
+            }
+
+        // Forward preset store changes so observers of ViewModel are notified immediately.
+        self.presetsCancellable = presets.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
             }
     }
 
