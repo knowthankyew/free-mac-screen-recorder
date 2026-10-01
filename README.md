@@ -1,6 +1,6 @@
 # Free Mac Screen Recorder
 
-> A free, open-source, **native macOS screen recorder** for Apple Silicon —
+> A free, open-source, **native macOS screen recorder** for Apple Silicon and Intel Macs —
 > built on Apple's **ScreenCaptureKit**, **AVFoundation**, and
 > **VideoToolbox**. Record any display, window, app, or custom region with
 > system audio, microphone, webcam picture-in-picture, and click highlights.
@@ -8,7 +8,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform: macOS 13+](https://img.shields.io/badge/Platform-macOS%2013%2B-blue)](https://www.apple.com/macos/)
-[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-native-success)]()
+[![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-arm64-success)]()
+[![Intel](https://img.shields.io/badge/Intel-x86__64-success)]()
 [![Swift 6](https://img.shields.io/badge/Swift-6-orange)](https://www.swift.org/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/penguinpecker/free-mac-screen-recorder/pulls)
 
@@ -61,7 +62,7 @@ dependencies on outside services, and is small enough that you can read the
 entire source in an afternoon.
 
 If you want a **screen recorder for Mac with no watermark**, with **system
-audio**, with a **webcam overlay**, that runs **natively on Apple Silicon**
+audio**, with a **webcam overlay**, that runs **natively on Apple Silicon and Intel Macs**
 and is **fully open-source under MIT**, this is for you.
 
 ---
@@ -92,7 +93,7 @@ and is **fully open-source under MIT**, this is for you.
   panel, four corners, three sizes, draggable, shadowed
 - 💆 **Click highlights** — animated ripple at every left/right/middle click
 - ⌨️ **Keystroke overlay** — chip near the bottom shows ⌘⇧K-style key prompts
-  with auto-fade
+  with auto-fade and **automatic password suppression** (`IsSecureEventInputEnabled()`)
 - All overlays appear in display + region recordings
 
 ### Output
@@ -103,23 +104,29 @@ and is **fully open-source under MIT**, this is for you.
 - 🖼️ **Animated GIF** export from any recording (configurable fps + width)
 - 🎚️ Auto bitrate or manual bits-per-second
 - 🛠️ Hardware-accelerated encoding via VideoToolbox
+- 🧱 **Movie fragmentation** — writes 10-second fragments to prevent memory bloat during long recordings
 
-### Workflow
+### Workflow & Reliability
 
 - ⏯️ **Pause / resume** — paused intervals are excised from the output (no frozen frames)
-- 🎭 **Named presets** — save the current configuration and recall it later
+- 🚨 **Mid-stream failure alerts** — multi-sensory notification (alert sound, dock bounce, window focus) if hardware or OS interrupts recording
+- 🩹 **Auto-salvage** — preserves and finalizes partial recordings up to the failure point
+- 🗑️ **Recording artifacts cleanup** — clean up failed or unwanted artifacts with safe "Move to Trash" default or optional permanent wipe
+- 🎭 **Named presets** — save and instantly recall configurations with live UI sync
 - 📚 **Recordings library** — browse past recordings with date, size, duration
 - 🔄 **Rename**, **drag-out** to Finder/Slack/Mail, **delete to Trash**
 - ⌨️ **Global hotkeys**: ⌘⇧R to start, ⌘⇧S to stop — works from any app
-- 📍 **Menu bar status item** — quick toggle without opening the main window
-- ⚙️ **Settings panel** — change output folder, default codec, default fps,
-  cursor visibility, system audio default
+- 📍 **Menu bar status item** — quick toggle and error status without opening the main window
+- ⚙️ **Settings panel** — configure output folder, defaults, and inspect privacy guarantees
 
-### Privacy & footprint
+### Privacy, Supply Chain & Footprint
 
-- 🛡️ 100% local — no analytics, no error reporting, no auto-updates phoning home
+- 🛡️ **100% local zero-egress** — no networking code, no analytics, no telemetry, no cloud upload
+- 🔒 **In-app privacy verification** — inspect live zero-egress governance claims in Settings
+- 🔐 **Password masking** — keystroke overlay automatically hides during sensitive/secure input fields
+- 📦 **CycloneDX SBOM** — automated CycloneDX v1.5 JSON Software Bill of Materials embedded in the app bundle
 - 🚫 No watermark, no time limit, no sign-in
-- 📦 Tiny binary, written entirely in Swift, no JavaScript runtime, no Electron
+- 📦 Tiny binary written entirely in Swift with zero external dependencies
 
 ---
 
@@ -151,7 +158,7 @@ vendor's current offering before switching.)
 ## Requirements
 
 - **macOS 13.0 (Ventura) or later** — macOS 14 (Sonoma) or 15 (Sequoia) recommended
-- **Apple Silicon (M-series)** — Intel Macs may work but are untested
+- **Apple Silicon (M-series) or Intel (x86_64) Mac** — both architectures are natively supported
 - For development:
   - Xcode Command Line Tools (already installed if you have `git` working)
   - Optional: full Xcode for app signing / notarization (only needed if you
@@ -161,20 +168,24 @@ vendor's current offering before switching.)
 
 ## Install
 
-### Build from source (current path)
+### Build from source (recommended)
 
 ```bash
 git clone https://github.com/penguinpecker/free-mac-screen-recorder.git
 cd free-mac-screen-recorder
-swift build                          # fast feedback loop
-./Scripts/build-app.sh release       # build the runnable .app bundle
+
+# 1. One-time setup: create a local self-signed certificate so macOS TCC
+#    preserves Screen Recording permissions across future rebuilds
+./Scripts/setup-stable-signing.sh
+
+# 2. Build the runnable .app bundle (automatically detects arm64 or x86_64)
+./Scripts/build-app.sh release
+
+# 3. Launch
 open "dist/Free Mac Screen Recorder.app"
 ```
 
-The build script wraps the SwiftPM binary into a proper `.app` bundle with
-the right `Info.plist` and ad-hoc code signing. It runs locally. To
-distribute the app to other machines you'll need full Xcode plus an Apple
-Developer ID certificate (out of scope for this README).
+The build script compiles for your host architecture (`arm64` on Apple Silicon or `x86_64` on Intel), generates an embedded CycloneDX SBOM, bundles `NOTICE.md`, and signs the `.app` bundle with your stable local certificate.
 
 ### Pre-built download
 
@@ -215,8 +226,15 @@ app.
 | Camera                  | AVCaptureSession reads webcam frames for the PiP overlay                       | Webcam PiP    |
 | Input Monitoring        | NSEvent.addGlobalMonitor reads keystrokes typed in other apps                  | Keystroke overlay |
 
-After granting any of these, **quit and relaunch** the app — macOS does not
-re-evaluate TCC for an already-running process.
+After granting any of these in **System Settings → Privacy & Security**, macOS requires the app to restart to apply the updated TCC token.
+
+> [!TIP]
+> **Preserving Permissions Across Rebuilds:** macOS tracks ad-hoc signed apps by binary hash (`cdhash`), causing permissions to reset every rebuild. Running `./Scripts/setup-stable-signing.sh` creates a stable local certificate (`Free Mac Screen Recorder Local`) in your login keychain so permissions remain granted permanently across all future updates.
+>
+> If you previously ran an ad-hoc build and permissions seem stuck in System Settings, reset the stale TCC entry with:
+> ```bash
+> tccutil reset ScreenCapture com.freemacscreenrecorder.app
+> ```
 
 ---
 
@@ -318,9 +336,11 @@ settings UI.
 
 ### Does it run on Intel Macs?
 
-The Swift package builds on Intel as well, but the project is developed
-exclusively against Apple Silicon. ScreenCaptureKit and VideoToolbox both
-work on Intel macOS 13+ in principle.
+Yes. Free Mac Screen Recorder natively supports both Apple Silicon (`arm64`) and Intel (`x86_64`) Macs running macOS 13+. Build scripts automatically detect host architecture and compile native Mach-O binaries.
+
+### What happens if a recording is interrupted or fails?
+
+If an active recording encounters an error (such as a hardware disconnection or ScreenCaptureKit stream fault), the app alerts you immediately with multi-sensory warnings (alert tone, dock bounce, and window focus), auto-salvages whatever frames were recorded up to that point, and offers a "Delete Artifacts…" action to easily move partial files to the Trash or permanently delete them.
 
 ### Is this an alternative to Loom?
 
@@ -339,6 +359,8 @@ scope here.
 
 Only if you turn on the *Show keystrokes* overlay. Reading keys typed in
 other apps requires that permission on macOS. Recording itself does not.
+The overlay automatically masks and suppresses keystroke display whenever
+secure password input fields are active (`IsSecureEventInputEnabled()`).
 
 ### Where are recordings saved?
 
@@ -361,6 +383,7 @@ Shipped:
 - ✅ Phase 2 — Region drag-select, live timer, level meters, recordings library, presets
 - ✅ Phase 3 — Webcam PiP, click highlights, global hotkeys, menu bar status
 - ✅ Phase 4 — Pause/resume with PTS rewriting, keystroke overlay, GIF export, settings panel, library polish
+- ✅ Phase 5 — Intel (`x86_64`) native support, stable local code signing for persistent TCC, mid-stream failure alerting & auto-salvage, recording artifacts cleanup, sensitive password masking, CycloneDX SBOM supply chain attestation
 
 Planned:
 
