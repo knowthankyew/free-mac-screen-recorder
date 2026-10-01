@@ -68,6 +68,7 @@ public final class RecordingViewModel: ObservableObject {
     private let session: CaptureSession
     private var settingsCancellable: AnyCancellable?
     private var presetsCancellable: AnyCancellable?
+    private var permissionsCancellable: AnyCancellable?
 
     @Published public var webcamEnabled: Bool = false
     @Published public var selectedWebcamDeviceID: String?
@@ -121,6 +122,17 @@ public final class RecordingViewModel: ObservableObject {
         self.presetsCancellable = presets.objectWillChange
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
+            }
+
+        // Auto-load available screens when permission is granted without requiring app relaunch
+        self.permissionsCancellable = permissions.$hasScreenRecording
+            .dropFirst()
+            .removeDuplicates()
+            .filter { $0 }
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    await self?.loadAvailableContent()
+                }
             }
 
         // Wire mid-session failure handler for immediate detection and aggressive warning
@@ -223,6 +235,15 @@ public final class RecordingViewModel: ObservableObject {
         status = .loadingContent
         permissions.refresh()
         devices.refresh()
+
+        // If screen recording permission is not yet granted, PermissionsBanner handles
+        // guiding the user. Avoid setting .error to prevent duplicate alarming red banners.
+        guard permissions.hasScreenRecording else {
+            log.info("Screen recording permission not granted yet. Waiting for authorization.")
+            status = .idle
+            return
+        }
+
         do {
             let content = try await ShareableContentLoader.load(excludingBundleID: bundleID)
             self.displays = content.displays
@@ -232,9 +253,13 @@ public final class RecordingViewModel: ObservableObject {
             status = .ready
         } catch {
             log.error("Could not load shareable content: \(error.localizedDescription, privacy: .public)")
-            status = .error(
-                "Couldn't enumerate screens. Grant Screen Recording in System Settings → Privacy & Security, then quit and relaunch."
-            )
+            status = .error("Couldn't enumerate screens: \(error.localizedDescription)")
+        }
+    }
+
+    public func dismissError() {
+        if case .error = status {
+            status = displays.isEmpty ? .idle : .ready
         }
     }
 

@@ -47,52 +47,57 @@ public struct MainView: View {
     @ViewBuilder
     private var errorBanner: some View {
         if case .error(let message) = vm.status {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.title)
-                        .foregroundStyle(.white)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Recording Interrupted")
-                            .font(.headline.bold())
+            let isInterruption = message.hasPrefix("⚠️ Recording") || message.contains("interrupted") || message.contains("Partial video saved")
+            // If screen recording permission is missing and this isn't an interrupted recording,
+            // PermissionsBanner already handles guiding the user without redundant banners.
+            if vm.permissions.hasScreenRecording || isInterruption {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: isInterruption ? "exclamationmark.triangle.fill" : "exclamationmark.circle.fill")
+                            .font(.title)
                             .foregroundStyle(.white)
-                        Text(message)
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.95))
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer()
-                    VStack(spacing: 6) {
-                        if !vm.library.files.isEmpty {
-                            Button("Show in Finder") {
-                                vm.revealLastRecording()
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(isInterruption ? "Recording Interrupted" : "Notice")
+                                .font(.headline.bold())
+                                .foregroundStyle(.white)
+                            Text(message)
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.95))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                        VStack(spacing: 6) {
+                            if isInterruption && !vm.library.files.isEmpty {
+                                Button("Show in Finder") {
+                                    vm.revealLastRecording()
+                                }
+                                .controlSize(.small)
+                                .buttonStyle(.borderedProminent)
+                                .tint(.white.opacity(0.35))
+                            }
+                            if isInterruption && vm.lastRecordingURL != nil {
+                                Button("Delete Artifacts…") {
+                                    showDeleteArtifactsSheet = true
+                                }
+                                .controlSize(.small)
+                                .buttonStyle(.borderedProminent)
+                                .tint(.white.opacity(0.35))
+                            }
+                            Button("Dismiss") {
+                                vm.dismissError()
                             }
                             .controlSize(.small)
                             .buttonStyle(.borderedProminent)
-                            .tint(.white.opacity(0.35))
+                            .tint(.white.opacity(0.2))
                         }
-                        if vm.lastRecordingURL != nil {
-                            Button("Delete Artifacts…") {
-                                showDeleteArtifactsSheet = true
-                            }
-                            .controlSize(.small)
-                            .buttonStyle(.borderedProminent)
-                            .tint(.white.opacity(0.35))
-                        }
-                        Button("Dismiss") {
-                            Task { await vm.loadAvailableContent() }
-                        }
-                        .controlSize(.small)
-                        .buttonStyle(.borderedProminent)
-                        .tint(.white.opacity(0.2))
                     }
                 }
+                .padding(14)
+                .background(isInterruption ? Color.red.opacity(0.92) : Color.orange.opacity(0.92))
+                .cornerRadius(10)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
-            .padding(14)
-            .background(Color.red.opacity(0.92))
-            .cornerRadius(10)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
         }
     }
 
