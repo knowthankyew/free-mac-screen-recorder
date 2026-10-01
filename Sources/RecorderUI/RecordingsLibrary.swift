@@ -27,8 +27,9 @@ public struct RecordingFile: Identifiable, Hashable, Sendable {
 @MainActor
 public final class RecordingsLibrary: ObservableObject {
     @Published public private(set) var files: [RecordingFile] = []
-
     @Published public private(set) var folder: URL
+
+    private let log = Logger(subsystem: "com.freemacscreenrecorder.app", category: "RecordingsLibrary")
 
     public init(folder: URL) {
         self.folder = folder
@@ -100,14 +101,46 @@ public final class RecordingsLibrary: ObservableObject {
         NSWorkspace.shared.open(file.url)
     }
 
-    public func delete(_ file: RecordingFile) {
-        do {
-            try FileManager.default.trashItem(at: file.url, resultingItemURL: nil)
-            files.removeAll { $0.url == file.url }
-        } catch {
-            // Surface in console; UI surfacing later.
-            print("Delete failed: \(error.localizedDescription)")
+    public func delete(_ file: RecordingFile, moveToTrash: Bool = true) {
+        deleteArtifacts(at: file.url, moveToTrash: moveToTrash)
+    }
+
+    /// Deletes the primary recording file and any matching sidecars or partial fragments.
+    public func deleteArtifacts(at url: URL, moveToTrash: Bool = true) {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: url.path) {
+            do {
+                if moveToTrash {
+                    try fm.trashItem(at: url, resultingItemURL: nil)
+                    log.info("Moved recording to trash: \(url.lastPathComponent, privacy: .public)")
+                } else {
+                    try fm.removeItem(at: url)
+                    log.info("Permanently deleted recording: \(url.lastPathComponent, privacy: .public)")
+                }
+            } catch {
+                log.error("Failed to delete recording at \(url.path): \(error.localizedDescription, privacy: .public)")
+            }
         }
+
+        // Clean up any matching sidecar or temporary fragment files with the same base name prefix
+        let dir = url.deletingLastPathComponent()
+        let baseName = url.deletingPathExtension().lastPathComponent
+        if let contents = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+            for item in contents where item != url && item.lastPathComponent.hasPrefix(baseName) {
+                do {
+                    if moveToTrash {
+                        try fm.trashItem(at: item, resultingItemURL: nil)
+                    } else {
+                        try fm.removeItem(at: item)
+                    }
+                    log.info("Deleted associated artifact: \(item.lastPathComponent, privacy: .public)")
+                } catch {
+                    log.error("Failed to delete artifact at \(item.path): \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+
+        files.removeAll { $0.url == url }
     }
 
     /// Rename a recording on disk (preserves extension) and refresh the entry.

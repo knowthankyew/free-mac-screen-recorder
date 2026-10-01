@@ -7,6 +7,8 @@ import SwiftUI
 public struct MainView: View {
     @ObservedObject private var vm: RecordingViewModel
     @State private var showLibrary = false
+    @State private var showDeleteArtifactsSheet = false
+    @State private var moveToTrash = true
 
     public init(vm: RecordingViewModel) {
         self.vm = vm
@@ -37,6 +39,9 @@ public struct MainView: View {
         .sheet(isPresented: $showLibrary) {
             RecordingsListView(library: vm.library)
         }
+        .sheet(isPresented: $showDeleteArtifactsSheet) {
+            deleteArtifactsSheet
+        }
     }
 
     @ViewBuilder
@@ -61,6 +66,14 @@ public struct MainView: View {
                         if !vm.library.files.isEmpty {
                             Button("Show in Finder") {
                                 vm.revealLastRecording()
+                            }
+                            .controlSize(.small)
+                            .buttonStyle(.borderedProminent)
+                            .tint(.white.opacity(0.35))
+                        }
+                        if vm.lastRecordingURL != nil {
+                            Button("Delete Artifacts…") {
+                                showDeleteArtifactsSheet = true
                             }
                             .controlSize(.small)
                             .buttonStyle(.borderedProminent)
@@ -319,6 +332,13 @@ public struct MainView: View {
         HStack(spacing: 12) {
             if case .finished(_) = vm.status {
                 Button("Show in Finder") { vm.revealLastRecording() }
+                if vm.lastRecordingURL != nil {
+                    Button("Delete Artifacts…") {
+                        showDeleteArtifactsSheet = true
+                    }
+                    .buttonStyle(.bordered)
+                    .foregroundStyle(.secondary)
+                }
             }
             Spacer()
             if isActive {
@@ -379,6 +399,55 @@ public struct MainView: View {
 
     private func sectionLabel(_ s: String) -> some View {
         Text(s).font(.headline).foregroundStyle(.secondary)
+    }
+
+    private var deleteArtifactsSheet: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 12) {
+                Image(systemName: "trash.circle.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.red)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Delete Recording Artifacts").font(.headline)
+                    if let url = vm.lastRecordingURL {
+                        Text(url.lastPathComponent)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle("Move files to Trash", isOn: $moveToTrash)
+                    .font(.body)
+                Text(moveToTrash
+                     ? "Files will be moved to the macOS Trash and can be restored if needed."
+                     : "Files will be permanently deleted from disk immediately. This cannot be undone.")
+                    .font(.caption)
+                    .foregroundStyle(moveToTrash ? Color.secondary : Color.red)
+            }
+            .padding(.vertical, 4)
+
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    showDeleteArtifactsSheet = false
+                }
+                .keyboardShortcut(.cancelAction)
+
+                Button(moveToTrash ? "Move to Trash" : "Permanently Delete", role: .destructive) {
+                    vm.deleteLastRecordingArtifacts(moveToTrash: moveToTrash)
+                    showDeleteArtifactsSheet = false
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
+            }
+        }
+        .padding(20)
+        .frame(width: 440)
     }
 }
 

@@ -52,6 +52,7 @@ public final class RecordingViewModel: ObservableObject {
     @Published public var customHeight: Int?
 
     @Published public private(set) var status: Status = .idle
+    @Published public private(set) var lastRecordingURL: URL?
 
     private var outputFolder: URL
     public let devices: DeviceManager
@@ -273,6 +274,7 @@ public final class RecordingViewModel: ObservableObject {
         }
         let geometry = currentGeometry(for: source)
         let url = freshOutputURL()
+        self.lastRecordingURL = url
 
         var settings = RecordingSettings(
             width: geometry.outputWidth,
@@ -316,6 +318,7 @@ public final class RecordingViewModel: ObservableObject {
         status = .stopping
         do {
             let url = try await session.stop()
+            self.lastRecordingURL = url
             status = .finished(url)
             await library.reload()
         } catch {
@@ -352,6 +355,7 @@ public final class RecordingViewModel: ObservableObject {
         Task {
             do {
                 let savedURL = try await session.stop()
+                self.lastRecordingURL = savedURL
                 log.info("Salvaged partial recording: \(savedURL.path, privacy: .public)")
                 status = .error("⚠️ Recording failed: \(message). Partial video saved as \(savedURL.lastPathComponent).")
                 await library.reload()
@@ -364,8 +368,23 @@ public final class RecordingViewModel: ObservableObject {
     public func revealLastRecording() {
         if case .finished(let url) = status {
             NSWorkspace.shared.activateFileViewerSelecting([url])
+        } else if let url = lastRecordingURL {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
         } else if let latest = library.files.first {
             NSWorkspace.shared.activateFileViewerSelecting([latest.url])
+        }
+    }
+
+    /// Deletes all artifacts (primary file + any matching temporary/partial fragments) associated with the last recording.
+    public func deleteLastRecordingArtifacts(moveToTrash: Bool = true) {
+        guard let url = lastRecordingURL else { return }
+        library.deleteArtifacts(at: url, moveToTrash: moveToTrash)
+        self.lastRecordingURL = nil
+        switch status {
+        case .finished, .error:
+            status = .ready
+        default:
+            break
         }
     }
 
