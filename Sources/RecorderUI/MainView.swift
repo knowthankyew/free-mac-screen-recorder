@@ -42,17 +42,44 @@ public struct MainView: View {
     @ViewBuilder
     private var errorBanner: some View {
         if case .error(let message) = vm.status {
-            HStack(spacing: 10) {
-                Image(systemName: "exclamationmark.octagon.fill").foregroundStyle(.white)
-                Text(message).font(.callout).foregroundStyle(.white)
-                Spacer()
-                Button("Retry") {
-                    Task { await vm.loadAvailableContent() }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.title)
+                        .foregroundStyle(.white)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Recording Interrupted")
+                            .font(.headline.bold())
+                            .foregroundStyle(.white)
+                        Text(message)
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.95))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    VStack(spacing: 6) {
+                        if !vm.library.files.isEmpty {
+                            Button("Show in Finder") {
+                                vm.revealLastRecording()
+                            }
+                            .controlSize(.small)
+                            .buttonStyle(.borderedProminent)
+                            .tint(.white.opacity(0.35))
+                        }
+                        Button("Dismiss") {
+                            Task { await vm.loadAvailableContent() }
+                        }
+                        .controlSize(.small)
+                        .buttonStyle(.borderedProminent)
+                        .tint(.white.opacity(0.2))
+                    }
                 }
-                .controlSize(.small)
             }
-            .padding(10)
-            .background(Color.orange.opacity(0.9))
+            .padding(14)
+            .background(Color.red.opacity(0.92))
+            .cornerRadius(10)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
     }
 

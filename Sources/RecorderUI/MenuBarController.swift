@@ -29,10 +29,24 @@ public final class MenuBarController: NSObject {
 
     private func update(for status: RecordingViewModel.Status) {
         guard let item = statusItem else { return }
-        let recording: Bool
-        if case .recording = status { recording = true } else { recording = false }
-        item.button?.image = recording ? recordingIcon : idleIcon
-        item.button?.image?.isTemplate = !recording  // red dot, not template
+        switch status {
+        case .recording:
+            item.button?.image = recordingIcon
+            item.button?.image?.isTemplate = false
+            item.button?.toolTip = "Recording in progress…"
+        case .paused:
+            item.button?.image = pausedIcon
+            item.button?.image?.isTemplate = false
+            item.button?.toolTip = "Recording paused"
+        case .error(let msg):
+            item.button?.image = errorIcon
+            item.button?.image?.isTemplate = false
+            item.button?.toolTip = "⚠️ Recording Error: \(msg)"
+        default:
+            item.button?.image = idleIcon
+            item.button?.image?.isTemplate = true
+            item.button?.toolTip = "Free Mac Screen Recorder"
+        }
         item.menu = buildMenu()
     }
 
@@ -40,6 +54,17 @@ public final class MenuBarController: NSObject {
 
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
+
+        if case .error(let msg) = vm?.status {
+            let errorItem = NSMenuItem(
+                title: "⚠️ Recording Failed: \(msg)",
+                action: #selector(showWindow),
+                keyEquivalent: ""
+            )
+            errorItem.target = self
+            menu.addItem(errorItem)
+            menu.addItem(.separator())
+        }
 
         let isRecording: Bool = {
             if case .recording = vm?.status { return true }
@@ -114,6 +139,14 @@ public final class MenuBarController: NSObject {
     }
     private var recordingIcon: NSImage? {
         let img = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "Recording")
+        return img?.tinted(with: .systemRed)
+    }
+    private var pausedIcon: NSImage? {
+        let img = NSImage(systemSymbolName: "pause.circle.fill", accessibilityDescription: "Recording Paused")
+        return img?.tinted(with: .systemOrange)
+    }
+    private var errorIcon: NSImage? {
+        let img = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "Recording Error")
         return img?.tinted(with: .systemRed)
     }
 }

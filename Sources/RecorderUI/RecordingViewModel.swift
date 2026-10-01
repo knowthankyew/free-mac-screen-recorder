@@ -121,6 +121,13 @@ public final class RecordingViewModel: ObservableObject {
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
             }
+
+        // Wire mid-session failure handler for immediate detection and aggressive warning
+        self.session.onFailure = { [weak self] errorMessage in
+            Task { @MainActor in
+                self?.handleRecordingFailure(errorMessage)
+            }
+        }
     }
 
     /// Install global hotkeys after the app is ready. Called from App.
@@ -316,9 +323,49 @@ public final class RecordingViewModel: ObservableObject {
         }
     }
 
+    @MainActor
+    private func handleRecordingFailure(_ message: String) {
+        guard case .recording = status else {
+            if case .paused = status {} else { return }
+            return
+        }
+
+        log.error("Active recording interrupted: \(message, privacy: .public)")
+
+        // 1. Immediately update status so UI reflects failure
+        status = .error("⚠️ Recording interrupted: \(message)")
+
+        // 2. Aggressive user alert: system alert sound
+        NSSound.beep()
+
+        // 3. Request user attention: Dock icon bounces continuously until activated
+        NSApp.requestUserAttention(.criticalRequest)
+
+        // 4. Force-activate the app and bring recorder window to front
+        NSApp.activate(ignoringOtherApps: true)
+        for window in NSApp.windows where window.title.contains("Free Mac Screen Recorder") {
+            window.makeKeyAndOrderFront(nil)
+            window.deminiaturize(nil)
+        }
+
+        // 5. Attempt auto-salvage of the partial recording so frames recorded up to failure aren't lost
+        Task {
+            do {
+                let savedURL = try await session.stop()
+                log.info("Salvaged partial recording: \(savedURL.path, privacy: .public)")
+                status = .error("⚠️ Recording failed: \(message). Partial video saved as \(savedURL.lastPathComponent).")
+                await library.reload()
+            } catch {
+                log.error("Auto-salvage failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
     public func revealLastRecording() {
         if case .finished(let url) = status {
             NSWorkspace.shared.activateFileViewerSelecting([url])
+        } else if let latest = library.files.first {
+            NSWorkspace.shared.activateFileViewerSelecting([latest.url])
         }
     }
 

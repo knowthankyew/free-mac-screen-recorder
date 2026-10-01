@@ -19,12 +19,16 @@ public final class VideoEncoder: @unchecked Sendable {
     private let log = Logger(subsystem: "com.freemacscreenrecorder.app", category: "VideoEncoder")
     private let settings: RecordingSettings
 
+    public var onError: (@Sendable (Error) -> Void)?
+    private var hasReportedError = false
+
     private var writer: AVAssetWriter?
     private var videoInput: AVAssetWriterInput?
     private var micInput: AVAssetWriterInput?
     private var systemAudioInput: AVAssetWriterInput?
 
     private var sessionStarted = false
+    private var sessionStartPTS: CMTime?
     private let queue = DispatchQueue(label: "com.freemacscreenrecorder.encoder", qos: .userInitiated)
 
     // Pause / resume: track total paused duration so PTS can be rewritten and
@@ -81,7 +85,18 @@ public final class VideoEncoder: @unchecked Sendable {
         } catch {
             throw EncoderError.writerInitFailed(error.localizedDescription)
         }
-        writer.shouldOptimizeForNetworkUse = true
+
+        // Enable movie fragment writing for MP4 and MOV containers.
+        // This writes movie fragments (moof boxes) every 10 seconds, which:
+        // 1. Prevents buffering enormous index structures in RAM on long (e.g. 15+ min) recordings.
+        // 2. Flushes media data directly to disk periodically.
+        // 3. Guarantees that if a crash, hardware reset, or mid-stream error occurs,
+        //    all completed fragments up to the point of failure remain playable on disk.
+        if settings.codec.avFileType == .mp4 || settings.codec.avFileType == .mov {
+            writer.movieFragmentInterval = CMTime(seconds: 10, preferredTimescale: 600)
+        } else {
+            writer.shouldOptimizeForNetworkUse = true
+        }
 
         // ── Video input ────────────────────────────────────────────────────
         var videoSettings: [String: Any] = [
@@ -155,7 +170,14 @@ public final class VideoEncoder: @unchecked Sendable {
         queue.async { [weak self] in
             guard let self, let writer = self.writer else { return }
 
+            if writer.status == .failed {
+                self.reportFailureIfNeeded(writer.error ?? EncoderError.finishFailed("Encoder asset writer has failed"))
+                return
+            }
+
             let originalPTS = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+            guard originalPTS.isValid else { return }
+
             // Track the most-recent PTS we've seen even when paused so we can
             // measure the gap correctly on resume.
             self.lastSeenPTS = originalPTS
@@ -169,7 +191,13 @@ public final class VideoEncoder: @unchecked Sendable {
                 guard kind == .video else { return }   // wait for first video frame
                 writer.startSession(atSourceTime: originalPTS)
                 self.sessionStarted = true
+                self.sessionStartPTS = originalPTS
                 self.log.info("Encoder session started @\(originalPTS.seconds, privacy: .public)s")
+            }
+
+            // Drop any sample buffer captured prior to session start
+            if let startPTS = self.sessionStartPTS, originalPTS < startPTS {
+                return
             }
 
             let input: AVAssetWriterInput?
@@ -205,8 +233,21 @@ public final class VideoEncoder: @unchecked Sendable {
                 buffer = sampleBuffer
             }
 
-            input.append(buffer)
+            let success = input.append(buffer)
+            if !success || writer.status == .failed {
+                self.log.error("Failed to append buffer of kind \(String(describing: kind)): writer status \(writer.status.rawValue)")
+                if writer.status == .failed {
+                    self.reportFailureIfNeeded(writer.error ?? EncoderError.finishFailed("Asset writer failed during append"))
+                }
+            }
         }
+    }
+
+    private func reportFailureIfNeeded(_ error: Error) {
+        guard !hasReportedError else { return }
+        hasReportedError = true
+        log.error("Encoder encountered fatal error: \(error.localizedDescription, privacy: .public)")
+        onError?(error)
     }
 
     public func finish() async throws -> URL {
@@ -224,9 +265,9 @@ public final class VideoEncoder: @unchecked Sendable {
         await writer.finishWriting()
 
         if writer.status == .failed {
-            throw EncoderError.finishFailed(
-                writer.error?.localizedDescription ?? "unknown writer failure"
-            )
+            let err = writer.error ?? EncoderError.finishFailed("unknown writer failure")
+            reportFailureIfNeeded(err)
+            throw EncoderError.finishFailed(err.localizedDescription)
         }
         log.info("Encoder finished: \(writer.outputURL.path, privacy: .public)")
         return writer.outputURL

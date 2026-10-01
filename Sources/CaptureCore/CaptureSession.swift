@@ -46,6 +46,7 @@ public final class CaptureSession: NSObject, SCStreamOutput, SCStreamDelegate {
     private let audioQueue = DispatchQueue(label: "com.freemacscreenrecorder.capture.audio", qos: .userInitiated)
 
     public private(set) var state: State = .idle
+    public var onFailure: (@Sendable (String) -> Void)?
 
     public init(ourBundleID: String, levels: AudioLevelMonitor = AudioLevelMonitor()) {
         self.ourBundleID = ourBundleID
@@ -75,6 +76,13 @@ public final class CaptureSession: NSObject, SCStreamOutput, SCStreamDelegate {
 
         // Encoder starts first so we have a place to send frames.
         let encoder = VideoEncoder(settings: settings)
+        encoder.onError = { [weak self] error in
+            guard let self else { return }
+            let msg = error.localizedDescription
+            self.log.error("Encoder reported error: \(msg, privacy: .public)")
+            self.state = .failed(msg)
+            self.onFailure?(msg)
+        }
         do {
             try encoder.start()
         } catch {
@@ -135,7 +143,13 @@ public final class CaptureSession: NSObject, SCStreamOutput, SCStreamDelegate {
 
     @discardableResult
     public func stop() async throws -> URL {
-        guard state == .recording || state == .paused else {
+        let wasFailed: Bool
+        switch state {
+        case .recording, .paused:
+            wasFailed = false
+        case .failed:
+            wasFailed = true
+        default:
             throw CaptureError.streamFailed("Not recording")
         }
         state = .stopping
@@ -150,11 +164,19 @@ public final class CaptureSession: NSObject, SCStreamOutput, SCStreamDelegate {
             state = .failed("encoder missing")
             throw CaptureError.streamFailed("encoder missing")
         }
-        let url = try await encoder.finish()
-        self.encoder = nil
-        self.stream = nil
-        state = .finished
-        return url
+
+        do {
+            let url = try await encoder.finish()
+            self.encoder = nil
+            self.stream = nil
+            state = wasFailed ? .failed("Partial recording saved") : .finished
+            return url
+        } catch {
+            self.encoder = nil
+            self.stream = nil
+            state = .failed(error.localizedDescription)
+            throw error
+        }
     }
 
     // MARK: - SCStreamOutput
@@ -199,8 +221,10 @@ public final class CaptureSession: NSObject, SCStreamOutput, SCStreamDelegate {
     // MARK: - SCStreamDelegate
 
     public func stream(_ stream: SCStream, didStopWithError error: Error) {
-        log.error("Stream stopped with error: \(error.localizedDescription, privacy: .public)")
-        state = .failed(error.localizedDescription)
+        let msg = error.localizedDescription
+        log.error("Stream stopped with error: \(msg, privacy: .public)")
+        state = .failed(msg)
+        onFailure?(msg)
     }
 
     // MARK: - Helpers
