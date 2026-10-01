@@ -202,7 +202,8 @@ public final class WebcamVideoProcessor: NSObject, AVCaptureVideoDataOutputSampl
             .transformed(by: CGAffineTransform(translationX: width, y: 0))
     }
 
-    /// Pure, lock-free background resolver using snapshotted configuration and cached assets.
+    /// Background resolver using snapshotted configuration and cached assets
+    /// (lock-free on hot path; performs standalone lock write-back only on preset cache miss).
     private func resolveBackground(
         config: Config,
         cachedCustomImage: CIImage?,

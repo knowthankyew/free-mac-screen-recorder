@@ -229,17 +229,13 @@ public final class WebcamOverlayController: ObservableObject {
     }
 
     private func reposition() {
-        guard let panel = window else { return }
-        let targetScreen: NSScreen = {
-            if let id = targetDisplayID,
-               let match = NSScreen.screens.first(where: {
-                   guard let num = $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
-                   return CGDirectDisplayID(num.uint32Value) == id
-               }) {
-                return match
-            }
-            return NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
-        }()
+        guard let panel = window,
+              let targetScreen = (targetDisplayID.flatMap { id in
+                  NSScreen.screens.first(where: {
+                      guard let num = $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
+                      return CGDirectDisplayID(num.uint32Value) == id
+                  })
+              } ?? NSScreen.main ?? NSScreen.screens.first) else { return }
 
         let target = size.pixels
         let visibleFrame = targetScreen.visibleFrame
