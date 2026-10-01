@@ -89,8 +89,10 @@ and is **fully open-source under MIT**, this is for you.
 
 ### Overlays
 
-- 📷 **Webcam picture-in-picture** — circular AVCaptureVideoPreviewLayer
-  panel, four corners, three sizes, draggable, shadowed
+- 📷 **Webcam picture-in-picture** — floating Metal-accelerated overlay with
+  Neural Engine person segmentation: background blur (subtle/balanced/strong),
+  virtual gradient/studio backdrops, custom background image replacement,
+  and transparent cutout silhouette. Four corners, three sizes, draggable, shadowed.
 - 💆 **Click highlights** — animated ripple at every left/right/middle click
 - ⌨️ **Keystroke overlay** — chip near the bottom shows ⌘⇧K-style key prompts
   with auto-fade and **automatic password suppression** (`IsSecureEventInputEnabled()`)
@@ -325,8 +327,11 @@ drag on.
 ### How do I add a webcam picture-in-picture?
 
 Toggle *Webcam picture-in-picture* in the Overlays section, pick a camera,
-and choose a corner and size. The overlay is captured along with the screen
-in display + region recordings.
+and choose a corner and size. You can also customize the background: apply
+real-time blur, choose from built-in virtual backdrops (Warm Studio, Cool Slate,
+Modern Minimal, Sunset, Green Screen), load your own custom background photo,
+or switch to transparent Cutout (Silhouette) mode. The overlay is captured along
+with the screen in display + region recordings.
 
 ### Can I export a recording as a GIF?
 

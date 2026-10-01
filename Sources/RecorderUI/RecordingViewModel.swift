@@ -83,6 +83,21 @@ public final class RecordingViewModel: ObservableObject {
     @Published public var webcamMirrored: Bool = true {
         didSet { webcam.mirrored = webcamMirrored }
     }
+    @Published public var webcamBackgroundMode: WebcamBackgroundMode = .none {
+        didSet { webcam.backgroundMode = webcamBackgroundMode }
+    }
+    @Published public var webcamBlurStrength: WebcamBlurStrength = .balanced {
+        didSet { webcam.blurStrength = webcamBlurStrength }
+    }
+    @Published public var webcamBackgroundPreset: WebcamBackgroundPreset = .warmStudio {
+        didSet { webcam.backgroundPreset = webcamBackgroundPreset }
+    }
+    @Published public var webcamCustomImageURL: URL? = nil {
+        didSet { webcam.customImageURL = webcamCustomImageURL }
+    }
+    @Published public var webcamShowBorder: Bool = true {
+        didSet { webcam.showBorder = webcamShowBorder }
+    }
     @Published public var clickHighlightsEnabled: Bool = false
     @Published public var keystrokesEnabled: Bool = false
     private let log = Logger(subsystem: "com.freemacscreenrecorder.app", category: "ViewModel")
@@ -177,6 +192,18 @@ public final class RecordingViewModel: ObservableObject {
         } catch {
             status = .error("Couldn't start webcam: \(error.localizedDescription)")
         }
+    }
+
+    public func pickWebcamCustomImage() {
+        webcam.pickCustomImage()
+        self.webcamCustomImageURL = webcam.customImageURL
+        self.webcamBackgroundMode = webcam.backgroundMode
+    }
+
+    public func clearWebcamCustomImage() {
+        webcam.clearCustomImage()
+        self.webcamCustomImageURL = nil
+        self.webcamBackgroundMode = webcam.backgroundMode
     }
 
     public func toggleClickHighlights() {

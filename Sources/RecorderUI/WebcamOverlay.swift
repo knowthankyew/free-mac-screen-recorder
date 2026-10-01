@@ -3,6 +3,7 @@ import AppKit
 import CoreGraphics
 import OSLog
 import QuartzCore
+import UniformTypeIdentifiers
 
 /// Position of the webcam overlay on the chosen display.
 public enum WebcamCorner: String, CaseIterable, Identifiable, Sendable {
@@ -36,6 +37,10 @@ public enum WebcamSize: String, CaseIterable, Identifiable, Sendable {
 /// `AVCaptureDevice`. Lives independently of the recording lifecycle — the
 /// recorder asks for `windowID` and excepts it from its SCContentFilter so the
 /// overlay appears in display / region captures.
+///
+/// Features hardware-accelerated Metal rendering, Neural Engine person segmentation,
+/// background blur, procedural virtual backdrops, custom image replacement,
+/// and transparent cutout silhouettes.
 @MainActor
 public final class WebcamOverlayController: ObservableObject {
 
@@ -47,16 +52,51 @@ public final class WebcamOverlayController: ObservableObject {
         didSet { reposition() }
     }
     @Published public var mirrored: Bool = true {
-        didSet { applyMirror() }
+        didSet { videoProcessor.mirrored = mirrored }
+    }
+
+    @Published public var backgroundMode: WebcamBackgroundMode = .none {
+        didSet {
+            videoProcessor.backgroundMode = backgroundMode
+            if let host = window?.contentView {
+                updateHostStyling(host: host, size: size.pixels)
+            }
+        }
+    }
+    @Published public var blurStrength: WebcamBlurStrength = .balanced {
+        didSet { videoProcessor.blurStrength = blurStrength }
+    }
+    @Published public var backgroundPreset: WebcamBackgroundPreset = .warmStudio {
+        didSet { videoProcessor.backgroundPreset = backgroundPreset }
+    }
+    @Published public var customImageURL: URL? = nil {
+        didSet { videoProcessor.customImageURL = customImageURL }
+    }
+    @Published public var showBorder: Bool = true {
+        didSet {
+            if let host = window?.contentView {
+                updateHostStyling(host: host, size: size.pixels)
+            }
+        }
     }
 
     private let log = Logger(subsystem: "com.freemacscreenrecorder.app", category: "Webcam")
     private let captureSession = AVCaptureSession()
+    private let videoOutput = AVCaptureVideoDataOutput()
+    private let videoQueue = DispatchQueue(label: "com.freemacscreenrecorder.webcam.video", qos: .userInteractive)
+    private let videoProcessor = WebcamVideoProcessor()
+
     private var window: WebcamPanel?
-    private var previewLayer: AVCaptureVideoPreviewLayer?
+    private var metalView: WebcamMetalView?
     private var currentDeviceID: String?
 
-    public init() {}
+    public init() {
+        videoProcessor.mirrored = mirrored
+        videoProcessor.backgroundMode = backgroundMode
+        videoProcessor.blurStrength = blurStrength
+        videoProcessor.backgroundPreset = backgroundPreset
+        videoProcessor.customImageURL = customImageURL
+    }
 
     /// CGWindowID of the overlay panel — used by SCContentFilter exceptions.
     public var windowID: CGWindowID? {
@@ -69,7 +109,6 @@ public final class WebcamOverlayController: ObservableObject {
         if window == nil {
             let panel = makePanel()
             self.window = panel
-            attachPreviewLayer(to: panel)
         }
         currentDeviceID = deviceID
         captureSession.startRunning()
@@ -90,6 +129,27 @@ public final class WebcamOverlayController: ObservableObject {
         currentDeviceID = deviceID
     }
 
+    public func pickCustomImage() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.image]
+        panel.message = "Choose a background image for webcam PIP"
+        panel.prompt = "Select"
+        if panel.runModal() == .OK, let url = panel.url {
+            self.customImageURL = url
+            self.backgroundMode = .customImage
+        }
+    }
+
+    public func clearCustomImage() {
+        self.customImageURL = nil
+        if backgroundMode == .customImage {
+            self.backgroundMode = .preset
+        }
+    }
+
     // MARK: - Internals
 
     private func configureSession(deviceID: String) throws {
@@ -100,7 +160,20 @@ public final class WebcamOverlayController: ObservableObject {
         let input = try AVCaptureDeviceInput(device: device)
         captureSession.beginConfiguration()
         captureSession.inputs.forEach { captureSession.removeInput($0) }
+        captureSession.outputs.forEach { captureSession.removeOutput($0) }
+
         if captureSession.canAddInput(input) { captureSession.addInput(input) }
+
+        videoOutput.videoSettings = [
+            kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
+        ]
+        videoOutput.alwaysDiscardsLateVideoFrames = true
+        videoOutput.setSampleBufferDelegate(videoProcessor, queue: videoQueue)
+
+        if captureSession.canAddOutput(videoOutput) {
+            captureSession.addOutput(videoOutput)
+        }
+
         if captureSession.canSetSessionPreset(.medium) { captureSession.sessionPreset = .medium }
         captureSession.commitConfiguration()
     }
@@ -122,32 +195,40 @@ public final class WebcamOverlayController: ObservableObject {
 
         let host = NSView(frame: frame)
         host.wantsLayer = true
-        host.layer?.cornerRadius = min(frame.width, frame.height) / 2  // circular
-        host.layer?.masksToBounds = true
-        host.layer?.borderColor = NSColor.white.withAlphaComponent(0.6).cgColor
-        host.layer?.borderWidth = 2
+
+        let metal = WebcamMetalView(frame: host.bounds)
+        metal.autoresizingMask = [.width, .height]
+        host.addSubview(metal)
+
+        self.metalView = metal
+        self.videoProcessor.renderView = metal
+
+        updateHostStyling(host: host, size: size.pixels)
         panel.contentView = host
         return panel
     }
 
-    private func attachPreviewLayer(to panel: WebcamPanel) {
-        guard let host = panel.contentView else { return }
-        let layer = AVCaptureVideoPreviewLayer(session: captureSession)
-        layer.videoGravity = .resizeAspectFill
-        layer.frame = host.bounds
-        layer.cornerRadius = min(host.bounds.width, host.bounds.height) / 2
-        layer.masksToBounds = true
-        host.layer?.addSublayer(layer)
-        previewLayer = layer
-        applyMirror()
-    }
+    private func updateHostStyling(host: NSView, size: CGSize) {
+        let radius = min(size.width, size.height) / 2
+        host.layer?.cornerRadius = radius
 
-    private func applyMirror() {
-        guard let conn = previewLayer?.connection else { return }
-        if conn.isVideoMirroringSupported {
-            conn.automaticallyAdjustsVideoMirroring = false
-            conn.isVideoMirrored = mirrored
+        if showBorder {
+            host.layer?.borderColor = NSColor.white.withAlphaComponent(0.6).cgColor
+            host.layer?.borderWidth = 2
+            host.layer?.masksToBounds = true
+            metalView?.layer?.masksToBounds = true
+        } else {
+            host.layer?.borderColor = nil
+            host.layer?.borderWidth = 0
+            if backgroundMode == .cutout {
+                host.layer?.masksToBounds = false
+                metalView?.layer?.masksToBounds = false
+            } else {
+                host.layer?.masksToBounds = true
+                metalView?.layer?.masksToBounds = true
+            }
         }
+        metalView?.layer?.cornerRadius = radius
     }
 
     private func reposition() {
@@ -179,12 +260,11 @@ public final class WebcamOverlayController: ObservableObject {
             )
         }
         panel.setFrame(NSRect(origin: origin, size: target), display: true, animate: false)
-        // Resize host + preview layer to match new size and keep it circular.
+
         if let host = panel.contentView {
             host.frame = NSRect(origin: .zero, size: target)
-            host.layer?.cornerRadius = min(target.width, target.height) / 2
-            previewLayer?.frame = host.bounds
-            previewLayer?.cornerRadius = host.layer?.cornerRadius ?? 0
+            metalView?.frame = host.bounds
+            updateHostStyling(host: host, size: target)
         }
     }
 }

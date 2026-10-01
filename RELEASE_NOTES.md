@@ -1,4 +1,36 @@
-# Free Mac Screen Recorder 0.2.0 Release Notes
+# Free Mac Screen Recorder Release Notes
+
+## Free Mac Screen Recorder 0.3.0
+
+**Release:** `v0.3.0` (Build `3`)  
+**Date:** October 1, 2026  
+**Architectures:** Apple Silicon (`arm64`), Intel (`x86_64`)  
+**Minimum OS:** macOS 13.0 (Ventura) or later  
+
+---
+
+### What's New in 0.3.0
+
+#### Real-Time Neural Engine Webcam PIP Effects
+
+* **Apple Neural Engine Person Segmentation:**  
+  Integrated Apple’s native `VNGeneratePersonSegmentationRequest` (Vision framework) for real-time person segmentation running on the Apple Neural Engine (ANE) and GPU. Completely on-device and zero-egress.
+* **Hardware-Accelerated Metal Rendering:**  
+  Replaced passive preview layer with `WebcamMetalView` (`MTKView` + Core Image render destinations) for zero-copy rendering and alpha transparency.
+* **Background Blur:**  
+  Added real-time background blurring with three intensity presets: Subtle (10px), Balanced (20px), and Strong (35px).
+* **Virtual Backdrops:**  
+  Added 5 built-in procedurally generated backdrops: Warm Studio, Cool Slate, Modern Minimal, Sunset, and Green Screen (chroma key `#00FF00`).
+* **Custom Background Image Replacement:**  
+  Users can select any photo or graphic from disk (`.png`, `.jpg`, `.heic`, etc.) via native macOS open panel with real-time aspect-fill cropping and GPU caching.
+* **Cutout (Silhouette) Mode:**  
+  Loom-style background removal where only the presenter's silhouette floats freely on screen.
+* **Toggleable Border Ring:**  
+  Customizable border ring styling with support for borderless floating cutouts.
+
+---
+
+## Free Mac Screen Recorder 0.2.0 Release Notes
 
 **Release:** `v0.2.0` (Build `2`)  
 **Date:** October 1, 2026  
@@ -7,7 +39,7 @@
 
 ---
 
-## Executive Summary
+## Executive Summary (0.2.0)
 
 Free Mac Screen Recorder `v0.2.0` represents a major milestone in platform support, recording reliability, consumer privacy governance, and desktop UX polish. This release introduces native Intel (`x86_64`) support, aggressive mid-stream failure alerting with partial video auto-salvage, persistent local code signing for macOS TCC retention, automated recording artifacts cleanup, sensitive password masking in keystroke overlays, and formal CycloneDX SBOM supply chain attestation.
 
