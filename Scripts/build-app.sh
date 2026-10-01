@@ -29,6 +29,16 @@ mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "$BIN" "$APP_DIR/Contents/MacOS/$EXEC_NAME"
 cp "$ROOT/Resources/Info.plist" "$APP_DIR/Contents/Info.plist"
 
+# Generate CycloneDX SBOM & embed supply chain notices
+if [ -f "$ROOT/Scripts/generate-sbom.py" ]; then
+    echo "==> Generating CycloneDX SBOM..."
+    python3 "$ROOT/Scripts/generate-sbom.py" "$DIST_DIR/bom.json" "$ARCH"
+    cp "$DIST_DIR/bom.json" "$APP_DIR/Contents/Resources/bom.json"
+fi
+if [ -f "$ROOT/NOTICE.md" ]; then
+    cp "$ROOT/NOTICE.md" "$APP_DIR/Contents/Resources/NOTICE.md"
+fi
+
 # PkgInfo (legacy but expected)
 printf 'APPL????' > "$APP_DIR/Contents/PkgInfo"
 

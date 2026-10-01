@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import CoreGraphics
 import OSLog
 import QuartzCore
@@ -62,6 +63,14 @@ public final class KeystrokeOverlayController: ObservableObject {
     }
 
     private func handle(event: NSEvent) {
+        // Suppress keystroke display when secure event input is active (e.g. password fields)
+        if IsSecureEventInputEnabled() {
+            hideWorkItem?.cancel()
+            window?.fadeOut()
+            log.debug("Keystroke overlay suppressed: secure event input is active")
+            return
+        }
+
         // Show only "real" keystrokes — ignore pure modifier flag changes.
         guard event.type == .keyDown else { return }
         guard let text = Self.format(event: event), !text.isEmpty else { return }

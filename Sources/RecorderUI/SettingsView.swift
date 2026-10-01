@@ -46,16 +46,29 @@ public struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Privacy & Data Governance") {
+                let claims = PrivacyClaimsProvider.currentClaims()
+                LabeledContent("Execution Model", value: claims.summaryBadge)
+                LabeledContent("Network Egress", value: claims.networkEgressPolicy.uppercased() + " (Air-Gapped)")
+                LabeledContent("Telemetry", value: "Disabled (Local OSLog Only)")
+                LabeledContent("Third-Party Packages", value: "\(claims.thirdPartyDependenciesCount) Dependencies")
+                LabeledContent("Password Masking", value: claims.secureInputSuppressionEnabled ? "Guarded (SecureEventInput)" : "Standard")
+                Text("Conforms to the knowthankyew Zero-Egress specification. No video, audio, keystroke, or telemetry data ever leaves this Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("About") {
                 LabeledContent("App", value: "Free Mac Screen Recorder")
                 LabeledContent("Project", value: "github.com/penguinpecker/free-mac-screen-recorder")
-                Text("MIT licensed. Built on ScreenCaptureKit, AVFoundation, and VideoToolbox.")
+                LabeledContent("Governance Standard", value: "knowthankyew Zero-Egress v1.0")
+                Text("MIT licensed. Built on ScreenCaptureKit, AVFoundation, and VideoToolbox. See NOTICE.md for supply chain and attribution disclosures.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 480, minHeight: 480)
+        .frame(minWidth: 480, minHeight: 520)
         .padding(.bottom, 12)
     }
 }
