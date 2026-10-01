@@ -69,6 +69,8 @@ public final class RecordingViewModel: ObservableObject {
     private var settingsCancellable: AnyCancellable?
     private var presetsCancellable: AnyCancellable?
     private var permissionsCancellable: AnyCancellable?
+    public weak var recorderWindow: NSWindow?
+    private var salvageTask: Task<Void, Never>?
 
     @Published public var webcamEnabled: Bool = false
     @Published public var selectedWebcamDeviceID: String?
@@ -353,10 +355,14 @@ public final class RecordingViewModel: ObservableObject {
 
     @MainActor
     private func handleRecordingFailure(_ message: String) {
-        guard case .recording = status else {
-            if case .paused = status {} else { return }
+        // De-duplicate: ignore if we are not recording/paused or already salvaging
+        switch status {
+        case .recording, .paused:
+            break
+        default:
             return
         }
+        guard salvageTask == nil else { return }
 
         log.error("Active recording interrupted: \(message, privacy: .public)")
 
@@ -371,21 +377,25 @@ public final class RecordingViewModel: ObservableObject {
 
         // 4. Force-activate the app and bring recorder window to front
         NSApp.activate(ignoringOtherApps: true)
-        for window in NSApp.windows where window.title.contains("Free Mac Screen Recorder") {
+        if let window = recorderWindow {
             window.makeKeyAndOrderFront(nil)
             window.deminiaturize(nil)
+        } else {
+            NotificationCenter.default.post(name: .recorderWindowShouldBecomeKey, object: nil)
         }
 
         // 5. Attempt auto-salvage of the partial recording so frames recorded up to failure aren't lost
-        Task {
+        salvageTask = Task { [weak self] in
+            guard let self else { return }
+            defer { Task { @MainActor in self.salvageTask = nil } }
             do {
-                let savedURL = try await session.stop()
+                let savedURL = try await self.session.stop()
                 self.lastRecordingURL = savedURL
-                log.info("Salvaged partial recording: \(savedURL.path, privacy: .public)")
-                status = .error("⚠️ Recording failed: \(message). Partial video saved as \(savedURL.lastPathComponent).")
-                await library.reload()
+                self.log.info("Salvaged partial recording: \(savedURL.path, privacy: .public)")
+                self.status = .error("⚠️ Recording failed: \(message). Partial video saved as \(savedURL.lastPathComponent).")
+                await self.library.reload()
             } catch {
-                log.error("Auto-salvage failed: \(error.localizedDescription, privacy: .public)")
+                self.log.error("Auto-salvage failed: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -475,3 +485,8 @@ public final class RecordingViewModel: ObservableObject {
         return outputFolder.appendingPathComponent("Recording_\(stamp).\(codec.fileExtension)")
     }
 }
+
+extension Notification.Name {
+    public static let recorderWindowShouldBecomeKey = Notification.Name("recorderWindowShouldBecomeKey")
+}
+

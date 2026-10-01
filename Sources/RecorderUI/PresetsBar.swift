@@ -41,7 +41,6 @@ struct PresetsBar: View {
             }
             .menuStyle(.borderlessButton)
             .frame(maxWidth: 100)
-            .id(presets.presets)
 
             Button("Save current…") {
                 newPresetName = "Preset \(presets.presets.count + 1)"

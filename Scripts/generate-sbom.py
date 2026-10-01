@@ -11,7 +11,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 
-def generate_sbom(output_path: str, arch: str = "arm64", version: str = "0.1.0"):
+def generate_sbom(output_path: str, arch: str = "arm64", version: str = "0.2.0"):
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     serial_uuid = f"urn:uuid:{uuid.uuid4()}"
     app_ref = f"pkg:generic/free-mac-screen-recorder@{version}?arch={arch}"
@@ -137,4 +137,5 @@ def generate_sbom(output_path: str, arch: str = "arm64", version: str = "0.1.0")
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "dist/bom.json"
     arch = sys.argv[2] if len(sys.argv) > 2 else "arm64"
-    generate_sbom(out, arch)
+    ver = sys.argv[3] if len(sys.argv) > 3 else "0.2.0"
+    generate_sbom(out, arch, ver)

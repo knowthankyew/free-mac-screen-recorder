@@ -101,6 +101,7 @@ public final class RecordingsLibrary: ObservableObject {
         NSWorkspace.shared.open(file.url)
     }
 
+    /// Deletes a recording entry from the library. Alias for `deleteArtifacts(at:moveToTrash:)`.
     public func delete(_ file: RecordingFile, moveToTrash: Bool = true) {
         deleteArtifacts(at: file.url, moveToTrash: moveToTrash)
     }
@@ -122,11 +123,17 @@ public final class RecordingsLibrary: ObservableObject {
             }
         }
 
-        // Clean up any matching sidecar or temporary fragment files with the same base name prefix
+        // Clean up only known partial fragment and temporary sidecars with exact baseName matching
         let dir = url.deletingLastPathComponent()
         let baseName = url.deletingPathExtension().lastPathComponent
+        let knownArtifactSuffixes = ["-partial", "-fragment", ".tmp", ".part"]
         if let contents = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
-            for item in contents where item != url && item.lastPathComponent.hasPrefix(baseName) {
+            for item in contents where item != url {
+                let itemName = item.lastPathComponent
+                let isAssociatedArtifact = knownArtifactSuffixes.contains { suffix in
+                    itemName.hasPrefix(baseName + suffix)
+                }
+                guard isAssociatedArtifact else { continue }
                 do {
                     if moveToTrash {
                         try fm.trashItem(at: item, resultingItemURL: nil)

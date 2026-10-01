@@ -32,7 +32,9 @@ cp "$ROOT/Resources/Info.plist" "$APP_DIR/Contents/Info.plist"
 # Generate CycloneDX SBOM & embed supply chain notices
 if [ -f "$ROOT/Scripts/generate-sbom.py" ]; then
     echo "==> Generating CycloneDX SBOM..."
-    python3 "$ROOT/Scripts/generate-sbom.py" "$DIST_DIR/bom.json" "$ARCH"
+    mkdir -p "$DIST_DIR"
+    VERSION="$(defaults read "$ROOT/Resources/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "0.2.0")"
+    python3 "$ROOT/Scripts/generate-sbom.py" "$DIST_DIR/bom.json" "$ARCH" "$VERSION"
     cp "$DIST_DIR/bom.json" "$APP_DIR/Contents/Resources/bom.json"
 fi
 if [ -f "$ROOT/NOTICE.md" ]; then

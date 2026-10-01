@@ -122,8 +122,11 @@ public final class MenuBarController: NSObject {
 
     @objc private func showWindow() {
         NSApp.activate(ignoringOtherApps: true)
-        for w in NSApp.windows where w.title.contains("Free Mac Screen Recorder") {
+        if let w = vm?.recorderWindow {
             w.makeKeyAndOrderFront(nil)
+            w.deminiaturize(nil)
+        } else {
+            NotificationCenter.default.post(name: .recorderWindowShouldBecomeKey, object: nil)
         }
     }
 

@@ -21,6 +21,7 @@ public final class VideoEncoder: @unchecked Sendable {
 
     public var onError: (@Sendable (Error) -> Void)?
     private var hasReportedError = false
+    private var errorLock = os_unfair_lock()
 
     private var writer: AVAssetWriter?
     private var videoInput: AVAssetWriterInput?
@@ -244,8 +245,14 @@ public final class VideoEncoder: @unchecked Sendable {
     }
 
     private func reportFailureIfNeeded(_ error: Error) {
-        guard !hasReportedError else { return }
+        os_unfair_lock_lock(&errorLock)
+        guard !hasReportedError else {
+            os_unfair_lock_unlock(&errorLock)
+            return
+        }
         hasReportedError = true
+        os_unfair_lock_unlock(&errorLock)
+
         log.error("Encoder encountered fatal error: \(error.localizedDescription, privacy: .public)")
         onError?(error)
     }

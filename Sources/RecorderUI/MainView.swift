@@ -35,6 +35,14 @@ public struct MainView: View {
             controlBar
         }
         .frame(minWidth: 560, minHeight: 640)
+        .background(WindowAccessor { [weak vm] window in
+            vm?.recorderWindow = window
+        })
+        .onReceive(NotificationCenter.default.publisher(for: .recorderWindowShouldBecomeKey)) { _ in
+            NSApp.activate(ignoringOtherApps: true)
+            vm.recorderWindow?.makeKeyAndOrderFront(nil)
+            vm.recorderWindow?.deminiaturize(nil)
+        }
         .task { await vm.loadAvailableContent() }
         .sheet(isPresented: $showLibrary) {
             RecordingsListView(library: vm.library)
@@ -465,3 +473,22 @@ private extension Binding where Value == Int? {
         )
     }
 }
+
+private struct WindowAccessor: NSViewRepresentable {
+    let callback: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { [weak view] in
+            callback(view?.window)
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { [weak nsView] in
+            callback(nsView?.window)
+        }
+    }
+}
+

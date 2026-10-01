@@ -2,7 +2,7 @@ import Carbon.HIToolbox
 import Foundation
 
 /// Single source of truth for runtime privacy and data governance claims.
-/// Adheres to the knowthankyew Consumer-Safe Zero-Egress specification.
+/// Adheres to the knowthankyew Consumer-Safe Zero-Egress open governance standard.
 public struct PrivacyClaims: Equatable, Sendable {
     /// True if the process executes entirely client-side with no remote network infrastructure.
     public let isLocalOnly: Bool
@@ -22,6 +22,9 @@ public struct PrivacyClaims: Equatable, Sendable {
     /// Whether secure event inputs (e.g. password fields) are actively suppressed from display.
     public let secureInputSuppressionEnabled: Bool
 
+    /// Whether secure event input is currently active in the system at this moment.
+    public let isSecureInputActiveNow: Bool
+
     /// User-facing summary badge string.
     public let summaryBadge: String
 
@@ -32,6 +35,7 @@ public struct PrivacyClaims: Equatable, Sendable {
         thirdPartyDependenciesCount: Int = 0,
         externalCloudUpload: Bool = false,
         secureInputSuppressionEnabled: Bool = true,
+        isSecureInputActiveNow: Bool = false,
         summaryBadge: String = "100% Local • Zero Network Egress"
     ) {
         self.isLocalOnly = isLocalOnly
@@ -40,14 +44,16 @@ public struct PrivacyClaims: Equatable, Sendable {
         self.thirdPartyDependenciesCount = thirdPartyDependenciesCount
         self.externalCloudUpload = externalCloudUpload
         self.secureInputSuppressionEnabled = secureInputSuppressionEnabled
+        self.isSecureInputActiveNow = isSecureInputActiveNow
         self.summaryBadge = summaryBadge
     }
 }
 
 /// Provider for inspecting and asserting runtime privacy invariants.
 public enum PrivacyClaimsProvider {
-    /// Dynamically derives active claims based on the application runtime environment.
+    /// Dynamically queries active claims based on the application runtime environment.
     public static func currentClaims() -> PrivacyClaims {
+        let isSecureActive = IsSecureEventInputEnabled()
         return PrivacyClaims(
             isLocalOnly: true,
             networkEgressPolicy: "deny",
@@ -55,6 +61,7 @@ public enum PrivacyClaimsProvider {
             thirdPartyDependenciesCount: 0,
             externalCloudUpload: false,
             secureInputSuppressionEnabled: true,
+            isSecureInputActiveNow: isSecureActive,
             summaryBadge: "100% Local • Zero Network Egress"
         )
     }
