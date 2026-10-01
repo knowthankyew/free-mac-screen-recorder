@@ -240,38 +240,7 @@ public struct MainView: View {
                     }
                 }
 
-                if vm.webcamBackgroundMode == .blur {
-                    Picker("Blur strength", selection: $vm.webcamBlurStrength) {
-                        ForEach(WebcamBlurStrength.allCases) { s in
-                            Text(s.displayName).tag(s)
-                        }
-                    }
-                } else if vm.webcamBackgroundMode == .preset {
-                    Picker("Virtual backdrop", selection: $vm.webcamBackgroundPreset) {
-                        ForEach(WebcamBackgroundPreset.allCases) { p in
-                            Text(p.displayName).tag(p)
-                        }
-                    }
-                } else if vm.webcamBackgroundMode == .customImage {
-                    HStack(spacing: 8) {
-                        Text("Custom image")
-                        Spacer()
-                        if let url = vm.webcamCustomImageURL {
-                            Text(url.lastPathComponent)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Button("Change…") { vm.pickWebcamCustomImage() }
-                                .controlSize(.small)
-                            Button("Clear") { vm.clearWebcamCustomImage() }
-                                .controlSize(.small)
-                        } else {
-                            Button("Choose Image…") { vm.pickWebcamCustomImage() }
-                                .controlSize(.small)
-                        }
-                    }
-                }
+                webcamBackgroundOptions
 
                 Toggle("Show border ring", isOn: $vm.webcamShowBorder)
             }
@@ -305,6 +274,45 @@ public struct MainView: View {
             Text("Saved to ~/Movies/Free Mac Screen Recorder/")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var webcamBackgroundOptions: some View {
+        switch vm.webcamBackgroundMode {
+        case .none, .cutout:
+            EmptyView()
+        case .blur:
+            Picker("Blur strength", selection: $vm.webcamBlurStrength) {
+                ForEach(WebcamBlurStrength.allCases) { s in
+                    Text(s.displayName).tag(s)
+                }
+            }
+        case .preset:
+            Picker("Virtual backdrop", selection: $vm.webcamBackgroundPreset) {
+                ForEach(WebcamBackgroundPreset.allCases) { p in
+                    Text(p.displayName).tag(p)
+                }
+            }
+        case .customImage:
+            HStack(spacing: 8) {
+                Text("Custom image")
+                Spacer()
+                if let url = vm.webcamCustomImageURL {
+                    Text(url.lastPathComponent)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Button("Change…") { vm.pickWebcamCustomImage() }
+                        .controlSize(.small)
+                    Button("Clear") { vm.clearWebcamCustomImage() }
+                        .controlSize(.small)
+                } else {
+                    Button("Choose Image…") { vm.pickWebcamCustomImage() }
+                        .controlSize(.small)
+                }
+            }
         }
     }
 

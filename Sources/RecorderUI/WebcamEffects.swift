@@ -32,9 +32,9 @@ public enum WebcamBlurStrength: String, CaseIterable, Identifiable, Sendable {
     public var id: String { rawValue }
     public var displayName: String {
         switch self {
-        case .subtle:   return "Subtle (10px)"
-        case .balanced: return "Balanced (20px)"
-        case .strong:   return "Strong (35px)"
+        case .subtle:   return "Subtle (\(Int(sigma))px)"
+        case .balanced: return "Balanced (\(Int(sigma))px)"
+        case .strong:   return "Strong (\(Int(sigma))px)"
         }
     }
     public var sigma: Double {
@@ -67,6 +67,8 @@ public enum WebcamBackgroundPreset: String, CaseIterable, Identifiable, Sendable
 
     /// Renders a crisp background `CIImage` sized to the target dimensions.
     public func makeImage(size: CGSize) -> CIImage {
+        // Defensive lower bound: Prevents near-zero dimension crashes and degenerate
+        // matrix inversions in Core Image procedural gradient filters.
         let width = max(size.width, 100)
         let height = max(size.height, 100)
         let rect = CGRect(origin: .zero, size: CGSize(width: width, height: height))

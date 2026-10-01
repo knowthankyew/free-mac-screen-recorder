@@ -54,6 +54,9 @@ public final class WebcamOverlayController: ObservableObject {
     @Published public var mirrored: Bool = true {
         didSet { videoProcessor.mirrored = mirrored }
     }
+    @Published public var targetDisplayID: CGDirectDisplayID? = nil {
+        didSet { reposition() }
+    }
 
     @Published public var backgroundMode: WebcamBackgroundMode = .none {
         didSet {
@@ -129,7 +132,8 @@ public final class WebcamOverlayController: ObservableObject {
         currentDeviceID = deviceID
     }
 
-    public func pickCustomImage() {
+    /// Prompts the user to select an image from disk and returns its URL if chosen.
+    public func pickCustomImage() -> URL? {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -138,16 +142,9 @@ public final class WebcamOverlayController: ObservableObject {
         panel.message = "Choose a background image for webcam PIP"
         panel.prompt = "Select"
         if panel.runModal() == .OK, let url = panel.url {
-            self.customImageURL = url
-            self.backgroundMode = .customImage
+            return url
         }
-    }
-
-    public func clearCustomImage() {
-        self.customImageURL = nil
-        if backgroundMode == .customImage {
-            self.backgroundMode = .preset
-        }
+        return nil
     }
 
     // MARK: - Internals
@@ -232,9 +229,20 @@ public final class WebcamOverlayController: ObservableObject {
     }
 
     private func reposition() {
-        guard let panel = window, let screen = NSScreen.main else { return }
+        guard let panel = window else { return }
+        let targetScreen: NSScreen = {
+            if let id = targetDisplayID,
+               let match = NSScreen.screens.first(where: {
+                   guard let num = $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
+                   return CGDirectDisplayID(num.uint32Value) == id
+               }) {
+                return match
+            }
+            return NSScreen.main ?? NSScreen.screens.first ?? NSScreen()
+        }()
+
         let target = size.pixels
-        let visibleFrame = screen.visibleFrame
+        let visibleFrame = targetScreen.visibleFrame
         let margin: CGFloat = 24
         let origin: NSPoint
         switch corner {

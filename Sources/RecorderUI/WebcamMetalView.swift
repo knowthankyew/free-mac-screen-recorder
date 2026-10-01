@@ -43,18 +43,25 @@ public final class WebcamMetalView: MTKView, MTKViewDelegate {
         self.layer?.isOpaque = false
     }
 
+    private var isDrawPending = false
+
     /// Feeds a new composited `CIImage` frame to be rendered.
     public func update(image: CIImage) {
         lock.lock()
         currentImage = image
+        if isDrawPending {
+            lock.unlock()
+            return
+        }
+        isDrawPending = true
         lock.unlock()
 
-        if Thread.isMainThread {
-            draw()
-        } else {
-            DispatchQueue.main.async { [weak self] in
-                self?.draw()
-            }
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.lock.lock()
+            self.isDrawPending = false
+            self.lock.unlock()
+            self.draw()
         }
     }
 

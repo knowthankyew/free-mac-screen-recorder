@@ -38,7 +38,9 @@ public final class RecordingViewModel: ObservableObject {
 
     // ── User selection ─────────────────────────────────────────────────────
     @Published public var sourceKind: SourceKind = .display
-    @Published public var selectedDisplayID: CGDirectDisplayID?
+    @Published public var selectedDisplayID: CGDirectDisplayID? {
+        didSet { webcam.targetDisplayID = selectedDisplayID }
+    }
     @Published public var selectedWindowID: CGWindowID?
     @Published public var selectedAppPID: pid_t?
     @Published public var selectedRegion: RegionSelection?
@@ -195,15 +197,16 @@ public final class RecordingViewModel: ObservableObject {
     }
 
     public func pickWebcamCustomImage() {
-        webcam.pickCustomImage()
-        self.webcamCustomImageURL = webcam.customImageURL
-        self.webcamBackgroundMode = webcam.backgroundMode
+        guard let url = webcam.pickCustomImage() else { return }
+        self.webcamCustomImageURL = url
+        self.webcamBackgroundMode = .customImage
     }
 
     public func clearWebcamCustomImage() {
-        webcam.clearCustomImage()
         self.webcamCustomImageURL = nil
-        self.webcamBackgroundMode = webcam.backgroundMode
+        if webcamBackgroundMode == .customImage {
+            self.webcamBackgroundMode = .preset
+        }
     }
 
     public func toggleClickHighlights() {

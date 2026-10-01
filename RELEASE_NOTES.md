@@ -111,8 +111,8 @@ open "dist/Free Mac Screen Recorder.app"
 Check the app bundle metadata:
 ```bash
 defaults read "$PWD/dist/Free Mac Screen Recorder.app/Contents/Info.plist" CFBundleShortVersionString
-# Output: 0.2.0
+# Output: 0.3.0
 
 defaults read "$PWD/dist/Free Mac Screen Recorder.app/Contents/Info.plist" CFBundleVersion
-# Output: 2
+# Output: 3
 ```
