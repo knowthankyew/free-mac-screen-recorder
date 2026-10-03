@@ -1,30 +1,21 @@
-# Free Mac Screen Recorder — Master Roadmap & Technical Specification
+# Free Mac Screen Recorder — Roadmap
 
-**Target Versions:** v0.4.0 – v0.8.0+  
-**Status:** Approved Master Architectural Blueprint  
+**Target versions:** v0.4.0 – v0.8.0+  
 **Subsystems:** `RecorderUI`, `CaptureCore`, `DeviceKit`, `EncoderKit`, Build & Distribution
 
 ---
 
-## 1. Executive Summary & Vision
-
-Free Mac Screen Recorder delivers private, lightweight, high-performance, zero-egress screen capture on macOS.
-
-This master roadmap consolidates shipped milestones and outlines future planned phases. It transitions the application into a versatile recording and presentation suite — combining OBS-level modularity with Apple-native elegance, zero-latency Metal rendering, and Neural Engine processing.
-
----
-
-## 2. Shipped Milestones (Phases 1 – 5)
+## Shipped (Phases 1 – 5)
 
 - ✅ **Phase 1 — Core Capture & Encoding**: Display/window/app source selection, system audio capture, microphone capture with AGC, H.264/HEVC/ProRes encoding, custom resolution overrides.
 - ✅ **Phase 2 — Interaction & Persistence**: Drag-to-select region capture, live recording timer, real-time dual audio level meters, recordings library with Finder reveal, capture presets.
 - ✅ **Phase 3 — Overlays & Hotkeys**: Hardware-accelerated webcam PiP overlay, mouse click highlights, global Carbon hotkeys (`⌘⇧R` / `⌘⇧S`), menu bar status item controller.
 - ✅ **Phase 4 — Polish & Flexibility**: Non-destructive pause/resume with PTS presentation timestamp rewriting, keystroke overlay with modifier key visualization, animated GIF exporter with palette quantization, App Settings panel, library management.
-- ✅ **Phase 5 — Enterprise Hardening & Universal Mac Support**: Native Intel (`x86_64`) support alongside Apple Silicon, self-healing local code signing for persistent macOS TCC permissions, mid-stream interruption detection with auto-salvage of partial recordings, artifact cleanup wizard, sensitive password field masking, CycloneDX SBOM supply chain attestation.
+- ✅ **Phase 5 — Hardening & Universal Mac Support**: Native Intel (`x86_64`) support alongside Apple Silicon, self-healing local code signing for persistent macOS TCC permissions, mid-stream interruption detection with auto-salvage of partial recordings, artifact cleanup wizard, sensitive password field masking, CycloneDX SBOM supply chain attestation.
 
 ---
 
-## 3. Phase 6: Facecam Studio & Unified PiP Engine
+## Phase 6: Facecam Studio & Unified PiP Engine
 
 ### 6.1 Quick-Toggle Header & Smart Profiles *(Shipped in v0.3.5)*
 - **Header Facecam Toggle (`person.crop.square` / `person.crop.square.fill`)**: One-click quick activation right in the window header next to History (`film.stack`).
@@ -81,7 +72,7 @@ This master roadmap consolidates shipped milestones and outlines future planned 
 
 ---
 
-## 4. Phase 7: Discoverable & Rebindable Keyboard Shortcuts
+## Phase 7: Discoverable & Rebindable Keyboard Shortcuts
 
 ### Objective
 Provide universal keyboard control across all core recording, overlay, and navigation actions, with zero-permission global operation and complete user rebindability.
@@ -128,9 +119,9 @@ Provide universal keyboard control across all core recording, overlay, and navig
 
 ---
 
-## 5. Phase 8: Post-Capture Trim & Visual Polish
+## Phase 8: Post-Capture Trim & Visual Polish
 
-### 5.1 In-App Trim Before Save
+### 8.1 In-App Trim Before Save
 - **Problem**: Screen recordings almost always have dead air at the beginning (before switching apps) and end (switching back to stop the recording).
 - **Solution**: A lightweight post-capture review modal displayed immediately after clicking Stop:
   - **Scrubbable Thumbnail Timeline**: Visual filmstrip generated asynchronously via `AVAssetImageGenerator`.
@@ -138,7 +129,7 @@ Provide universal keyboard control across all core recording, overlay, and navig
   - **Lossless / Passthrough Trimming**: Uses `AVAssetExportSession` with `AVAssetExportPresetPassthrough` to perform sub-second trims without re-encoding, preserving pristine video quality and metadata.
   - **Actions**: "Save Trimmed", "Save Original", "Discard", or "Open in QuickTime".
 
-### 5.2 Cursor Click Ripple Style Customization
+### 8.2 Cursor Click Ripple Style Customization
 - **Expanded Visual Styles**:
   - **Concentric Radar Wave**: Expanding double rings that dissipate outward.
   - **Soft Glow Pulse**: Expanding diffuse radial glow with smooth alpha falloff.
@@ -153,9 +144,9 @@ Provide universal keyboard control across all core recording, overlay, and navig
 
 ---
 
-## 6. Phase 9: Intelligent Capture (Auto-Zoom & Live Transcription)
+## Phase 9: Intelligent Capture (Auto-Zoom & Live Transcription)
 
-### 6.1 Dynamic Auto-Zoom on Cursor (Screen Studio Style)
+### 9.1 Dynamic Auto-Zoom on Cursor (Screen Studio Style)
 - **Concept**: Dynamically magnifies the active area of interest when the presenter clicks, types, or navigates menus, keeping viewers focused without manual post-production keyframing.
 - **Algorithm & Motion Physics**:
   - **Interest Point Detection**: Tracks mouse clicks, text input events, and cursor dwell time to calculate focal centroids.
@@ -163,7 +154,7 @@ Provide universal keyboard control across all core recording, overlay, and navig
   - **Metal Viewport Cropping**: Renders dynamic viewport transformations in real-time or records metadata sidecar coordinates for non-destructive post-recording pan/zoom rendering.
   - **Configurability**: Zoom Depth (`1.25x`, `1.5x`, `2.0x`), Smoothness slider, and manual override shortcut (`⌘+` / `⌘-` to zoom focal area on demand).
 
-### 6.2 Live Captions & Transcription via Apple Speech Framework
+### 9.2 Live Captions & Transcription via Apple Speech Framework
 - **Zero-Egress Posture**: Leverages Apple's native on-device `SFSpeechRecognizer` (macOS Speech framework). 100% private, zero network egress, fully functional offline.
 - **Real-Time Visual Captions**:
   - Floating, modern subtitle badge rendered over the screen capture.
@@ -175,9 +166,9 @@ Provide universal keyboard control across all core recording, overlay, and navig
 
 ---
 
-## 7. Phase 10: Developer & Distribution Ecosystem
+## Phase 10: Developer & Distribution Ecosystem
 
-### 7.1 Notarized Signed Releases on GitHub Releases
+### 10.1 Notarized Signed Releases on GitHub Releases
 - **Automated Notarization Pipeline**:
   - CI workflow utilizing Apple's `xcrun notarytool` with App Store Connect API keys.
   - Automated `stapler` stapling to the `.app` bundle and DMG installer.
@@ -186,7 +177,7 @@ Provide universal keyboard control across all core recording, overlay, and navig
   - Automated GitHub Releases packaging upon semantic version tags (`v0.4.0`, etc.).
   - Checksums (SHA-256) and embedded CycloneDX SBOM (`bom.json`) for supply chain verification.
 
-### 7.2 Full Xcode Project Alongside SwiftPM
+### 10.2 Full Xcode Project Alongside SwiftPM
 - **Dual Development Ergonomics**:
   - Provide an official `.xcodeproj` generated cleanly alongside the root `Package.swift`.
   - Enables Xcode-native visual debugging, SwiftUI Canvas Previews, Metal frame capture (`MTLFrameCaptureManager`), Instruments profiling, and Apple Developer signing configuration.
@@ -194,7 +185,7 @@ Provide universal keyboard control across all core recording, overlay, and navig
 
 ---
 
-## 8. Horizon Stretch Goals *(Nice-to-Have)*
+## Horizon: Stretch Goals *(Nice-to-Have)*
 
 - **User-Defined Custom Cam Window Shapes**:
   - Upload arbitrary alpha stencil masks (PNG/WebP) or vector paths (`.svg`) to create comic speech bubbles, game HUDs, or organic brushstroke cam windows.
@@ -210,7 +201,7 @@ Provide universal keyboard control across all core recording, overlay, and navig
 
 ---
 
-## 9. Master Milestone & Release Schedule
+## Milestone & Release Schedule
 
 | Phase | Milestone | Target Version | Scope & Deliverables | Status |
 | :--- | :--- | :--- | :--- | :--- |
@@ -220,12 +211,12 @@ Provide universal keyboard control across all core recording, overlay, and navig
 | **Phase 4** | Pause & Export | v0.2.5 | Non-destructive pause/resume, keystrokes, GIF export, settings | ✅ Shipped |
 | **Phase 5** | Hardening & Universal | v0.3.0 | Intel support, stable signing, auto-salvage, artifact cleanup, SBOM | ✅ Shipped |
 | **Phase 6** | Facecam Studio & PiP | v0.4.0 – v0.5.5 | Header toggle (shipped v0.3.5), geometric shapes, "Solid Color" outline, blurred backdrop, modular branding, MP4 Video PiP | 🚀 In Progress |
-| **Phase 7** | Rebindable Hotkeys | v0.6.0 | Rebindable hotkey engine, `⌘/` cheat sheet, tooltip badges, menu bar glyphs | 🚀 Planned |
-| **Phase 8** | Post-Capture Trim | v0.6.5 | In-app trim before save (thumbnail timeline), click ripple styles | 🚀 Planned |
-| **Phase 9** | Intelligent Capture | v0.7.0 | Screen Studio-style auto-zoom, on-device live speech captions (`SFSpeechRecognizer`) | 🚀 Planned |
-| **Phase 10** | Distribution & IDE | v0.7.5 | Notarized GitHub releases (`notarytool`), full `.xcodeproj` generator | 🚀 Planned |
+| **Phase 7** | Rebindable Hotkeys | v0.6.0 | Rebindable hotkey engine, `⌘/` cheat sheet, tooltip badges, menu bar glyphs | 🟡 Planned |
+| **Phase 8** | Post-Capture Trim | v0.6.5 | In-app trim before save (thumbnail timeline), click ripple styles | 🟡 Planned |
+| **Phase 9** | Intelligent Capture | v0.7.0 | Screen Studio-style auto-zoom, on-device live speech captions (`SFSpeechRecognizer`) | 🟡 Planned |
+| **Phase 10** | Distribution & IDE | v0.7.5 | Notarized GitHub releases (`notarytool`), full `.xcodeproj` generator | 🟡 Planned |
 | **Horizon** | Stretch Goals | v0.8.0+ | Custom SVG shape stencils, standalone meeting mode, dual-track ISO recording | 🔮 Nice-to-Have |
 
 ---
 
-*Document maintained by the Free Mac Screen Recorder open-source project.*
+Want a feature on this list to move from planned to shipped? Open an issue or a PR.

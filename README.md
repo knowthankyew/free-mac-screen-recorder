@@ -382,44 +382,25 @@ and saved presets live alongside.
 
 ## Roadmap
 
-A detailed architectural specification and release plan is maintained in [ROADMAP.md](ROADMAP.md).
+See [ROADMAP.md](ROADMAP.md) for the full technical specification and release plan.
 
 ### Shipped:
 
-- ✅ **Phase 1** — Source picker, mic + system audio, MP4/HEVC/ProRes, custom resolution
-- ✅ **Phase 2** — Region drag-select, live timer, level meters, recordings library, presets
-- ✅ **Phase 3** — Webcam PiP, click highlights, global hotkeys, menu bar status
-- ✅ **Phase 4** — Pause/resume with PTS rewriting, keystroke overlay, GIF export, settings panel, library polish
-- ✅ **Phase 5** — Intel (`x86_64`) native support, stable local code signing for persistent TCC, mid-stream failure alerting & auto-salvage, recording artifacts cleanup, sensitive password masking, CycloneDX SBOM supply chain attestation
+- ✅ Phase 1 — Source picker, mic + system audio, MP4/HEVC/ProRes, custom resolution
+- ✅ Phase 2 — Region drag-select, live timer, level meters, recordings library, presets
+- ✅ Phase 3 — Webcam PiP, click highlights, global hotkeys, menu bar status
+- ✅ Phase 4 — Pause/resume with PTS rewriting, keystroke overlay, GIF export, settings panel, library polish
+- ✅ Phase 5 — Intel (`x86_64`) support, stable local code signing for persistent TCC, mid-stream auto-salvage, artifact cleanup, SBOM attestation
 
 ### Planned:
 
-- 🚀 **[Phase 6 — Facecam Studio & Unified PiP Engine](ROADMAP.md#3-phase-6-facecam-studio--unified-pip-engine)**
-  - Quick-toggle header button & smart profile binding *(shipped in v0.3.5)*
-  - Geometric shapes beyond circle (Squircle, 16:9 widescreen, pill, arch, polygons)
-  - Border & stroke engine ("Solid Color" wheel, RGB/Hex workflow, 0–20px width)
-  - Blurred custom backdrop (apply GPU Gaussian blur to user-selected images)
-  - Modular branding engine (independent logo watermark vs. PiP-anchored frame)
-  - Unified PiP engine with MP4 media playback mode
-- 🚀 **[Phase 7 — Discoverable & Rebindable Keyboard Shortcuts](ROADMAP.md#4-phase-7-discoverable--rebindable-keyboard-shortcuts)**
-  - User-rebindable hotkey engine with custom key recorder in Settings
-  - Searchable keyboard shortcuts cheat sheet modal (`⌘/`)
-  - Rich tooltip hotkey badges and native macOS menu bar glyphs
-- 🚀 **[Phase 8 — Post-Capture Trim & Visual Polish](ROADMAP.md#5-phase-8-post-capture-trim--visual-polish)**
-  - In-app trim before save (drag in/out points on a scrubbable thumbnail timeline)
-  - Cursor click ripple style customization (concentric rings, glow pulse, colors, sounds)
-- 🚀 **[Phase 9 — Intelligent Capture](ROADMAP.md#6-phase-9-intelligent-capture-auto-zoom--live-transcription)**
-  - Auto-zoom on cursor with spring physics interpolation (Screen Studio-style)
-  - Live on-device captions & transcription via Apple Speech framework (`.srt`/`.vtt` export)
-- 🚀 **[Phase 10 — Developer & Distribution Ecosystem](ROADMAP.md#7-phase-10-developer--distribution-ecosystem)**
-  - Notarized signed release distribution on GitHub Releases via automated `notarytool` CI
-  - Full Xcode project (`.xcodeproj`) alongside SwiftPM for IDE-driven development
-- 🔮 **[Horizon Stretch Goals](ROADMAP.md#8-horizon-stretch-goals-nice-to-have)**
-  - User-defined custom cam window shapes (alpha masks / SVG vector stencils)
-  - Standalone meeting presenter mode (Zoom, Google Meet, Teams, Slack Huddles)
-  - Dual-track ISO MP4 recording (screen and camera recorded to synchronized separate files)
+- 🟡 [Phase 6](ROADMAP.md#phase-6-facecam-studio--unified-pip-engine) — Facecam Studio & Unified PiP Engine (geometric shapes, custom backdrop, branding, MP4 PiP)
+- 🟡 [Phase 7](ROADMAP.md#phase-7-discoverable--rebindable-keyboard-shortcuts) — Rebindable hotkeys, `⌘/` cheat sheet, tooltip badges
+- 🟡 [Phase 8](ROADMAP.md#phase-8-post-capture-trim--visual-polish) — In-app trim before save, cursor click ripple style customization
+- 🟡 [Phase 9](ROADMAP.md#phase-9-intelligent-capture-auto-zoom--live-transcription) — Auto-zoom on cursor (Screen Studio-style), live on-device captions via Apple Speech
+- 🟡 [Phase 10](ROADMAP.md#phase-10-developer--distribution-ecosystem) — Notarized signed releases, full `.xcodeproj` alongside SwiftPM
 
-Want a feature on this list to move from planned to shipped? Open an issue or a PR.
+Want a feature on this list to move from 🟡 to ✅? Open an issue or a PR.
 
 ---
 
