@@ -4,7 +4,7 @@ import CoreImage.CIFilterBuiltins
 import Foundation
 
 /// Active background processing mode for the webcam picture-in-picture overlay.
-public enum WebcamBackgroundMode: String, CaseIterable, Identifiable, Sendable {
+public enum WebcamBackgroundMode: String, Codable, CaseIterable, Identifiable, Sendable {
     case none
     case blur
     case preset

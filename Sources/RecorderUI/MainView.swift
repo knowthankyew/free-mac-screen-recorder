@@ -9,6 +9,7 @@ public struct MainView: View {
     @State private var showLibrary = false
     @State private var showDeleteArtifactsSheet = false
     @State private var moveToTrash = true
+    @State private var highlightOverlays = false
 
     public init(vm: RecordingViewModel) {
         self.vm = vm
@@ -22,14 +23,28 @@ public struct MainView: View {
             errorBanner
             PresetsBar(vm: vm)
             Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    sourceSection
-                    audioSection
-                    overlaysSection
-                    outputSection
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        sourceSection
+                        audioSection
+                        overlaysSection
+                            .id("overlaysSection")
+                        outputSection
+                    }
+                    .padding(20)
                 }
-                .padding(20)
+                .onReceive(vm.highlightOverlaysSubject) { _ in
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        proxy.scrollTo("overlaysSection", anchor: .center)
+                        highlightOverlays = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            highlightOverlays = false
+                        }
+                    }
+                }
             }
             Divider()
             controlBar
@@ -43,7 +58,10 @@ public struct MainView: View {
             vm.recorderWindow?.makeKeyAndOrderFront(nil)
             vm.recorderWindow?.deminiaturize(nil)
         }
-        .task { await vm.loadAvailableContent() }
+        .task {
+            await vm.loadAvailableContent()
+            await vm.applyStartupDefaultOverlays()
+        }
         .sheet(isPresented: $showLibrary) {
             RecordingsListView(library: vm.library)
         }
@@ -130,6 +148,16 @@ public struct MainView: View {
             }
             Spacer()
             Button {
+                vm.triggerFacecamToggleAction()
+            } label: {
+                Image(systemName: vm.webcamEnabled ? "person.crop.square.fill" : "person.crop.square")
+                    .font(.system(size: 15))
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(vm.webcamEnabled ? Color.accentColor : Color.secondary)
+            .help(vm.webcamEnabled ? "Turn off Facecam PiP" : "Turn on Facecam PiP (uses default Facecam profile)")
+
+            Button {
                 showLibrary = true
             } label: {
                 Image(systemName: "film.stack")
@@ -203,7 +231,15 @@ public struct MainView: View {
 
     private var overlaysSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Overlays")
+            HStack {
+                sectionLabel("Overlays")
+                if highlightOverlays {
+                    Text("• Camera, Clicks & Keystrokes Config")
+                        .font(.caption.bold())
+                        .foregroundStyle(Color.accentColor)
+                        .transition(.opacity)
+                }
+            }
 
             // Webcam PiP
             HStack {
@@ -261,6 +297,16 @@ public struct MainView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+        .padding(highlightOverlays ? 12 : 0)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(highlightOverlays ? Color.accentColor.opacity(0.12) : Color.clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(highlightOverlays ? Color.accentColor : Color.clear, lineWidth: 1.5)
+        )
+        .animation(.easeInOut(duration: 0.3), value: highlightOverlays)
     }
 
     private var outputSection: some View {

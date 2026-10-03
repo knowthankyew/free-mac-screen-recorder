@@ -102,6 +102,35 @@ public final class RecordingViewModel: ObservableObject {
     }
     @Published public var clickHighlightsEnabled: Bool = false
     @Published public var keystrokesEnabled: Bool = false
+    public let highlightOverlaysSubject = PassthroughSubject<Void, Never>()
+    @Published public var activePresetID: UUID? = nil
+
+    private var webcamToggleTask: Task<Void, Never>?
+
+    public var activePreset: Preset? {
+        guard let id = activePresetID else { return nil }
+        return presets.presets.first(where: { $0.id == id })
+    }
+
+    /// Indicates whether any current settings diverge from the currently active profile.
+    public var isPresetModified: Bool {
+        guard let active = activePreset else { return false }
+        return active.codec != codec
+            || active.fps != fps
+            || active.showsCursor != showsCursor
+            || active.captureSystemAudio != captureSystemAudio
+            || active.captureMicrophone != captureMicrophone
+            || active.customWidth != customWidth
+            || active.customHeight != customHeight
+            || active.sourceKindRaw != sourceKind.rawValue
+            || active.webcamEnabled != webcamEnabled
+            || active.clickHighlightsEnabled != clickHighlightsEnabled
+            || active.keystrokesEnabled != keystrokesEnabled
+            || (active.webcamCorner != nil && active.webcamCorner != webcamCorner)
+            || (active.webcamSize != nil && active.webcamSize != webcamSize)
+            || (active.webcamBackgroundMode != nil && active.webcamBackgroundMode != webcamBackgroundMode)
+    }
+
     private let log = Logger(subsystem: "com.freemacscreenrecorder.app", category: "ViewModel")
     private let bundleID: String
 
@@ -128,6 +157,31 @@ public final class RecordingViewModel: ObservableObject {
         self.fps = settings.defaultFPS
         self.showsCursor = settings.defaultShowsCursor
         self.captureSystemAudio = settings.defaultCaptureSystemAudio
+
+        // If a default startup profile is configured, apply its settings to the working state on launch.
+        if let defaultP = presets.defaultPreset {
+            self.activePresetID = defaultP.id
+            if let kind = SourceKind(rawValue: defaultP.sourceKindRaw) { self.sourceKind = kind }
+            self.codec = defaultP.codec
+            self.fps = defaultP.fps
+            self.showsCursor = defaultP.showsCursor
+            self.captureSystemAudio = defaultP.captureSystemAudio
+            self.captureMicrophone = defaultP.captureMicrophone
+            self.customWidth = defaultP.customWidth
+            self.customHeight = defaultP.customHeight
+
+            if let corner = defaultP.webcamCorner {
+                self.webcamCorner = corner
+            }
+            if let size = defaultP.webcamSize {
+                self.webcamSize = size
+            }
+            if let mode = defaultP.webcamBackgroundMode {
+                self.webcamBackgroundMode = mode
+            }
+            // Note: overlay activation (webcam, click highlights, keystrokes) is safely deferred
+            // to applyStartupDefaultOverlays(), called when the view appears.
+        }
 
         // Reload library if the user changes the output folder.
         self.settingsCancellable = settings.$outputFolder
@@ -229,11 +283,27 @@ public final class RecordingViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Presets
+    // MARK: - Presets & Facecam Workflow
+
+    /// Safely activates startup default overlay features (such as webcam PiP) after the view has appeared,
+    /// avoiding races with AVCaptureVideoPreviewLayer or window creation.
+    public func applyStartupDefaultOverlays() async {
+        guard let defaultP = presets.defaultPreset else { return }
+        if defaultP.clickHighlightsEnabled && !clickHighlightsEnabled {
+            toggleClickHighlights()
+        }
+        if defaultP.keystrokesEnabled && !keystrokesEnabled {
+            toggleKeystrokes()
+        }
+        if defaultP.webcamEnabled && !webcamEnabled {
+            await toggleWebcam()
+        }
+    }
 
     /// Capture the current settings into a new preset.
-    public func snapshotPreset(named name: String) -> Preset {
+    public func snapshotPreset(id: UUID = UUID(), named name: String, useForFacecam: Bool = false) -> Preset {
         Preset(
+            id: id,
             name: name,
             sourceKindRaw: sourceKind.rawValue,
             codec: codec,
@@ -242,15 +312,65 @@ public final class RecordingViewModel: ObservableObject {
             captureSystemAudio: captureSystemAudio,
             captureMicrophone: captureMicrophone,
             customWidth: customWidth,
-            customHeight: customHeight
+            customHeight: customHeight,
+            webcamEnabled: webcamEnabled,
+            useForFacecam: useForFacecam,
+            clickHighlightsEnabled: clickHighlightsEnabled,
+            keystrokesEnabled: keystrokesEnabled,
+            webcamCorner: webcamCorner,
+            webcamSize: webcamSize,
+            webcamBackgroundMode: webcamBackgroundMode
         )
     }
 
-    public func saveCurrentAsPreset(named name: String) {
-        presets.add(snapshotPreset(named: name))
+    /// Generates a deduplicated profile name with an auto-incrementing suffix if a collision exists.
+    public func uniquePresetName(from baseName: String, excludingID: UUID? = nil) -> String {
+        let trimmed = baseName.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return "Preset 1" }
+        let existingNames = Set(presets.presets.filter { $0.id != excludingID }.map { $0.name.lowercased() })
+        if !existingNames.contains(trimmed.lowercased()) {
+            return trimmed
+        }
+        var counter = 2
+        while existingNames.contains("\(trimmed) (\(counter))".lowercased()) {
+            counter += 1
+        }
+        return "\(trimmed) (\(counter))"
+    }
+
+    public func saveCurrentAsPreset(named name: String, useForFacecam: Bool = false, setAsStartupDefault: Bool = false) {
+        let finalName = uniquePresetName(from: name)
+        let preset = snapshotPreset(named: finalName, useForFacecam: useForFacecam)
+        presets.add(preset)
+        self.activePresetID = preset.id
+        if setAsStartupDefault {
+            presets.setDefault(id: preset.id)
+        }
+    }
+
+    public func updateActivePreset() {
+        guard let active = activePreset else { return }
+        let updated = snapshotPreset(id: active.id, named: active.name, useForFacecam: active.useForFacecam)
+        presets.update(updated)
+    }
+
+    public func setDefaultPreset(id: UUID?) {
+        presets.setDefault(id: id)
+    }
+
+    public func setAsFacecamPreset(id: UUID) {
+        presets.setAsFacecam(id: id)
+    }
+
+    public func deletePreset(id: UUID) {
+        if activePresetID == id {
+            activePresetID = nil
+        }
+        presets.delete(id: id)
     }
 
     public func apply(_ preset: Preset) {
+        self.activePresetID = preset.id
         if let kind = SourceKind(rawValue: preset.sourceKindRaw) { sourceKind = kind }
         codec = preset.codec
         fps = preset.fps
@@ -259,6 +379,107 @@ public final class RecordingViewModel: ObservableObject {
         captureMicrophone = preset.captureMicrophone
         customWidth = preset.customWidth
         customHeight = preset.customHeight
+
+        // Apply overlay configuration using typed enums
+        if let corner = preset.webcamCorner {
+            self.webcamCorner = corner
+        }
+        if let size = preset.webcamSize {
+            self.webcamSize = size
+        }
+        if let mode = preset.webcamBackgroundMode {
+            self.webcamBackgroundMode = mode
+        }
+
+        if preset.clickHighlightsEnabled != clickHighlightsEnabled {
+            toggleClickHighlights()
+        }
+        if preset.keystrokesEnabled != keystrokesEnabled {
+            toggleKeystrokes()
+        }
+        if preset.webcamEnabled != webcamEnabled {
+            webcamToggleTask?.cancel()
+            webcamToggleTask = Task { @MainActor [weak self] in
+                guard let self, !Task.isCancelled else { return }
+                await self.toggleWebcam()
+            }
+        }
+    }
+
+    /// Handles clicking the quick Facecam toggle in the upper right.
+    /// Follows intelligent profile resolution:
+    /// 1. If Facecam is already running, toggle it off.
+    /// 2. If a profile is marked "use for facecam", apply it.
+    /// 3. If exactly one profile with PIP exists, mark it as Facecam and apply it.
+    /// 4. If multiple profiles exist with PIP, prefer active preset if it has PIP, otherwise use the first one.
+    /// 5. If no configured profile with PIP exists, turn on PIP in current context and highlight overlays section.
+    public func triggerFacecamToggleAction() {
+        if webcamEnabled {
+            webcamToggleTask?.cancel()
+            webcamToggleTask = Task { @MainActor [weak self] in
+                guard let self, !Task.isCancelled else { return }
+                await self.toggleWebcam()
+            }
+            return
+        }
+
+        // 1. If a Facecam profile is explicitly designated, apply it
+        if let facecam = presets.facecamPreset {
+            apply(facecam)
+            if !webcamEnabled {
+                webcamToggleTask?.cancel()
+                webcamToggleTask = Task { @MainActor [weak self] in
+                    guard let self, !Task.isCancelled else { return }
+                    await self.toggleWebcam()
+                }
+            }
+            return
+        }
+
+        let pipPresets = presets.presetsWithPIP
+
+        // 2. If exactly one profile with PIP exists, auto-check it and apply
+        if pipPresets.count == 1, let single = pipPresets.first {
+            presets.setAsFacecam(id: single.id)
+            apply(single)
+            if !webcamEnabled {
+                webcamToggleTask?.cancel()
+                webcamToggleTask = Task { @MainActor [weak self] in
+                    guard let self, !Task.isCancelled else { return }
+                    await self.toggleWebcam()
+                }
+            }
+            return
+        }
+
+        // 3. If multiple exist with PIP, prefer active preset if it has PIP, else pick first
+        if !pipPresets.isEmpty {
+            let chosen: Preset
+            if let active = activePreset, active.webcamEnabled {
+                chosen = active
+            } else {
+                chosen = pipPresets[0]
+            }
+            presets.setAsFacecam(id: chosen.id)
+            apply(chosen)
+            if !webcamEnabled {
+                webcamToggleTask?.cancel()
+                webcamToggleTask = Task { @MainActor [weak self] in
+                    guard let self, !Task.isCancelled else { return }
+                    await self.toggleWebcam()
+                }
+            }
+            return
+        }
+
+        // 4. No configured profile with PIP checked:
+        // Turn that checkbox on in present context and draw user's attention to the config
+        webcamToggleTask?.cancel()
+        webcamToggleTask = Task { @MainActor [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            await self.toggleWebcam()
+        }
+        highlightOverlaysSubject.send()
     }
 
     // MARK: - Loading

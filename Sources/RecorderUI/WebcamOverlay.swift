@@ -6,7 +6,7 @@ import QuartzCore
 import UniformTypeIdentifiers
 
 /// Position of the webcam overlay on the chosen display.
-public enum WebcamCorner: String, CaseIterable, Identifiable, Sendable {
+public enum WebcamCorner: String, Codable, CaseIterable, Identifiable, Sendable {
     case topLeft, topRight, bottomLeft, bottomRight
     public var id: String { rawValue }
     public var displayName: String {
@@ -20,7 +20,7 @@ public enum WebcamCorner: String, CaseIterable, Identifiable, Sendable {
 }
 
 /// One of three preset sizes for the webcam picture-in-picture window.
-public enum WebcamSize: String, CaseIterable, Identifiable, Sendable {
+public enum WebcamSize: String, Codable, CaseIterable, Identifiable, Sendable {
     case small, medium, large
     public var id: String { rawValue }
     public var pixels: CGSize {
